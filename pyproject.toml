@@ -1,0 +1,24 @@
+[project]
+name = "peekaboo"
+version = "0.1.0"
+description = "Pre-deployment scanner for detecting steganographic payloads, backdoor triggers, and abnormal parameter behavior in AI model weights."
+requires-python = ">=3.10"
+readme = "README.md"
+dependencies = [
+    "numpy>=1.24",
+    "torch>=2.0",
+    "safetensors>=0.4",
+    "onnx>=1.15",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["peekaboo*"]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

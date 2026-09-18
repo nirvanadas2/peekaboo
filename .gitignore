@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+*.onnx
+*.safetensors
+*.pt
+*.pth
+!tests/fixtures/**
+benchmark_output/
