@@ -1,9 +1,10 @@
-"""Data classes for the Phase 1 pre-check reports: Metadata Integrity
-(Stage 1) and Structural Consistency (Stage 2).
+"""Data classes for the Phase 1/2 pipeline reports: Metadata Integrity
+(Stage 1), Structural Consistency (Stage 2), and Statistical Analysis
+(Stage 3).
 
-Both stages share the same pass/fail + findings pattern via `Finding`,
-so downstream code (and the pipeline gate) can treat either report
-uniformly when deciding what to surface to a caller.
+All stages share the same pass/fail + findings pattern via `Finding`,
+so downstream code (and the pipeline gate) can treat any of these
+reports uniformly when deciding what to surface to a caller.
 """
 
 from __future__ import annotations
@@ -86,6 +87,30 @@ class StructuralReport:
 
     model_path: str
     mode: str  # "self_consistency" | "spec_diff"
+    passed: bool
+    findings: list[Finding] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "model_path": self.model_path,
+            "mode": self.mode,
+            "passed": self.passed,
+            "findings": [f.to_dict() for f in self.findings],
+            "metadata": self.metadata,
+        }
+
+
+@dataclass
+class StatisticalReport:
+    """Output of Stage 3 (Statistical Analysis) for a single model file.
+
+    Same principle as StructuralReport: no `hard_fail` field. This stage
+    never gates later stages — severity here is a triage label only.
+    """
+
+    model_path: str
+    mode: str  # "relative_outlier" | "absolute_fallback"
     passed: bool
     findings: list[Finding] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)

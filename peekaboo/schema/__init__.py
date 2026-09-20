@@ -5,7 +5,7 @@ from peekaboo.schema.model_risk_score import (
     PillarScore,
     Severity,
 )
-from peekaboo.schema.reports import Finding, MetadataReport, StructuralReport
+from peekaboo.schema.reports import Finding, MetadataReport, StatisticalReport, StructuralReport
 
 __all__ = [
     "Explanation",
@@ -16,4 +16,5 @@ __all__ = [
     "Finding",
     "MetadataReport",
     "StructuralReport",
+    "StatisticalReport",
 ]
