@@ -10,8 +10,8 @@ import numpy as np
 
 from peekaboo.benchmark.stego import embed_lsb
 
-NOISE_TARGET_LAYERS = ("conv1.weight", "fc.weight")
-STEGO_TARGET_LAYERS = ("conv2.weight", "fc.weight")
+NOISE_TARGET_LAYERS = ("conv1.weight", "fc1.weight")
+STEGO_TARGET_LAYERS = ("conv3.weight", "fc2.weight")
 STEGO_PAYLOAD = b"PEEKABOO-STEGO-PAYLOAD-v1::this text is hidden in the mantissa bits"
 STEGO_BITS_PER_VALUE = 4
 

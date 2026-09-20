@@ -59,6 +59,14 @@ def generate_benchmark(out_dir: str, seed: int = 0) -> list[dict[str, Any]]:
     manifest: list[dict[str, Any]] = []
 
     # --- clean baseline ---
+    # Seed before constructing the model, not just before training: model
+    # construction (Kaiming/uniform init of conv/linear/BN parameters) is
+    # itself a random draw. Seeding only inside `_train` (as this used to
+    # do) left initial weights dependent on whatever the global RNG state
+    # happened to be at import/process-start time, which is NOT
+    # reproducible across fresh processes despite the explicit `seed`
+    # argument. See tests/test_benchmark.py::TestCleanVariantReproducibility.
+    torch.manual_seed(seed)
     clean_model = TinyCNN()
     clean_training_info = train_clean(clean_model, seed=seed)
     clean_state = state_dict_to_numpy(clean_model)
@@ -112,6 +120,7 @@ def generate_benchmark(out_dir: str, seed: int = 0) -> list[dict[str, Any]]:
     )
 
     # --- backdoored: trained on trigger-poisoned data ---
+    torch.manual_seed(seed + 2)  # see the note above the clean baseline
     backdoor_model = TinyCNN()
     backdoor_training_info = train_backdoored(backdoor_model, seed=seed + 2)
     backdoor_state = state_dict_to_numpy(backdoor_model)

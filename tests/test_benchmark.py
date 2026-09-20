@@ -5,6 +5,9 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import subprocess
+import sys
+import textwrap
 from pathlib import Path
 
 import numpy as np
@@ -124,3 +127,38 @@ class TestSteganographicGroundTruth:
                 assert np.allclose(clean_arr, stego_arr, atol=1e-2)
             else:
                 assert np.array_equal(clean_arr, stego_arr)
+
+
+def _generate_clean_variant_hash_in_fresh_process(out_dir: Path) -> str:
+    """Run generate_benchmark in a brand-new Python process (not just a
+    fresh function call) and return the sha256 of the resulting
+    clean.safetensors. A genuinely fresh process has no shared global RNG
+    state with this test process at all, which is exactly what's needed
+    to catch a bug where model construction depends on ambient RNG state
+    rather than the explicit seed argument."""
+    script = textwrap.dedent(
+        f"""
+        import hashlib
+        from peekaboo.benchmark.generate import generate_benchmark
+        generate_benchmark({str(out_dir)!r}, seed=0)
+        with open({str(out_dir / "clean.safetensors")!r}, "rb") as f:
+            print(hashlib.sha256(f.read()).hexdigest())
+        """
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, check=True
+    )
+    return result.stdout.strip()
+
+
+class TestCleanVariantReproducibility:
+    """Regression test for a bug where the clean variant's initial weights
+    depended on ambient global RNG state rather than the explicit `seed`
+    argument, because TinyCNN() was constructed before torch.manual_seed
+    was called. Fixed in generate.py by seeding immediately before model
+    construction. See PHASE2.md for how this was discovered."""
+
+    def test_identical_weights_across_fresh_processes(self, tmp_path: Path) -> None:
+        hash_a = _generate_clean_variant_hash_in_fresh_process(tmp_path / "run_a")
+        hash_b = _generate_clean_variant_hash_in_fresh_process(tmp_path / "run_b")
+        assert hash_a == hash_b
