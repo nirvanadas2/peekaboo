@@ -163,22 +163,25 @@ class TestAnalyzeLayerAndModel:
     def test_clean_layer_mostly_info_severity(self):
         arr = _rng().standard_normal(5000).astype(np.float32)
         findings = analyze_layer("layer.weight", arr, n_bits=4)
-        severities = {f.severity for f in findings}
         # Not asserting zero findings above INFO (natural rounding
         # noise can trip these before calibration) — just confirming
-        # it runs end-to-end and returns the expected test set.
-        test_names = {f.test_name for f in findings}
-        assert "bit_balance_chi_square" in test_names
-        assert "block_homogeneity_chi_square" in test_names
-        assert "wald_wolfowitz_runs" in test_names
-        assert any("bit_autocorrelation" in n for n in test_names)
+        # it runs end-to-end and returns the expected test set. Each
+        # Finding carries its layer name in `details`, not as a
+        # top-level field (shared Finding schema -- see module docstring).
+        checks = {f.check for f in findings}
+        assert "bit_balance_chi_square" in checks
+        assert "block_homogeneity_chi_square" in checks
+        assert "wald_wolfowitz_runs" in checks
+        assert any("bit_autocorrelation" in c for c in checks)
+        assert all(f.details.get("layer_name") == "layer.weight" for f in findings)
 
     def test_unsupported_dtype_layer_gives_single_info_finding(self):
         arr = np.arange(100, dtype=np.int32)
         findings = analyze_layer("counter.buffer", arr, n_bits=4)
         assert len(findings) == 1
-        assert findings[0].test_name == "dtype_support"
+        assert findings[0].check == "dtype_support"
         assert findings[0].severity == Severity.INFO
+        assert findings[0].passed is True
 
     def test_analyze_model_aggregates_layers(self):
         model = _model(
@@ -189,9 +192,11 @@ class TestAnalyzeLayerAndModel:
             }
         )
         report = analyze_model(model, n_bits=4)
-        assert report.layers_analyzed == 2
-        assert report.layers_skipped == 1
+        assert report.model_path == "synthetic"
+        assert report.metadata["layers_analyzed"] == 2
+        assert report.metadata["layers_skipped"] == 1
         assert report.max_severity in list(Severity)
+        assert report.passed == all(f.passed for f in report.findings)
 
     def test_calibrate_on_clean_returns_summary(self):
         model = _model(

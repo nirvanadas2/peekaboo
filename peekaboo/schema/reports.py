@@ -1,10 +1,13 @@
-"""Data classes for the Phase 1/2 pipeline reports: Metadata Integrity
-(Stage 1), Structural Consistency (Stage 2), and Statistical Analysis
-(Stage 3).
+"""Data classes for the pipeline reports: Metadata Integrity (Stage 1),
+Structural Consistency (Stage 2), Statistical Analysis (Stage 3),
+Steganographic Detection (Stage 4), and Behavioral Probing (Stage 5).
 
 All stages share the same pass/fail + findings pattern via `Finding`,
 so downstream code (and the pipeline gate) can treat any of these
-reports uniformly when deciding what to surface to a caller.
+reports uniformly when deciding what to surface to a caller. Stage 4 was
+originally built (outside this repo) with its own local `Severity`/
+`LayerStegoFinding`/`StegoReport` types instead of these shared ones;
+that inconsistency has been fixed so all five stages share one schema.
 """
 
 from __future__ import annotations
@@ -53,6 +56,18 @@ def compute_hard_fail(findings: list[Finding]) -> bool:
     return any((not f.passed) and f.severity == Severity.CRITICAL for f in findings)
 
 
+_SEVERITY_ORDER = [Severity.INFO, Severity.LOW, Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL]
+
+
+def compute_max_severity(findings: list[Finding]) -> Severity:
+    """The single worst severity across a list of findings, INFO if the
+    list is empty. Used by reports (StegoReport, BehavioralReport) that
+    want one summary label alongside the full findings list."""
+    if not findings:
+        return Severity.INFO
+    return max(findings, key=lambda f: _SEVERITY_ORDER.index(f.severity)).severity
+
+
 @dataclass
 class MetadataReport:
     """Output of Stage 1 (Metadata Integrity) for a single model file."""
@@ -96,6 +111,65 @@ class StructuralReport:
             "model_path": self.model_path,
             "mode": self.mode,
             "passed": self.passed,
+            "findings": [f.to_dict() for f in self.findings],
+            "metadata": self.metadata,
+        }
+
+
+@dataclass
+class StegoReport:
+    """Output of Stage 4 (Steganographic Detection) for a single model
+    file. Same no-`hard_fail` principle as StructuralReport/
+    StatisticalReport: severity here is a triage label only, never
+    control flow."""
+
+    model_path: str
+    passed: bool
+    findings: list[Finding] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def max_severity(self) -> Severity:
+        return compute_max_severity(self.findings)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "model_path": self.model_path,
+            "passed": self.passed,
+            "max_severity": self.max_severity.value,
+            "findings": [f.to_dict() for f in self.findings],
+            "metadata": self.metadata,
+        }
+
+
+@dataclass
+class BehavioralReport:
+    """Output of Stage 5 (Behavioral Probing) for a single model file.
+
+    Same no-`hard_fail` principle as the other post-Stage-1 reports.
+    `mode` is `"not_runnable"` when no caller-supplied `forward_fn` was
+    available to actually execute the model -- that case still produces
+    exactly one visible Finding (never a silent empty report), so any
+    downstream Model Risk Score can tell "checked, found nothing" apart
+    from "could not check." See PHASE4.md.
+    """
+
+    model_path: str
+    mode: str  # "not_runnable" | "probed"
+    passed: bool
+    findings: list[Finding] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def max_severity(self) -> Severity:
+        return compute_max_severity(self.findings)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "model_path": self.model_path,
+            "mode": self.mode,
+            "passed": self.passed,
+            "max_severity": self.max_severity.value,
             "findings": [f.to_dict() for f in self.findings],
             "metadata": self.metadata,
         }

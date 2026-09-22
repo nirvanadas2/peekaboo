@@ -74,31 +74,33 @@ Honesty / known limitations (read before trusting any output)
   behavioral probing or future work suggests payloads live in higher
   mantissa bits or in exponent bits, `n_bits` and the extraction
   function will need extending — flagged as a TODO, not fixed here.
+- This module originally defined its own local `Severity`/
+  `LayerStegoFinding`/`StegoReport` types (written outside the repo,
+  without visibility into Stages 1-3's shared schema). It now reuses
+  `peekaboo.schema.reports.Finding`/`StegoReport`/`compute_passed` and
+  `peekaboo.schema.model_risk_score.Severity`, the same convention
+  Stage 3's own docstring states as deliberate ("reuses Phase 1's
+  Finding/Severity/compute_passed machinery... rather than reinventing
+  them"). One user-visible consequence: `Finding.severity.value` is now
+  lowercase (`"info"`, not `"INFO"`), matching Stages 1-3's `to_dict()`
+  output, where it previously was not.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from enum import Enum
 from typing import Optional
 
 import numpy as np
 
 from peekaboo.loaders.common import LoadedModel
+from peekaboo.schema.model_risk_score import Severity
+from peekaboo.schema.reports import Finding, StegoReport, compute_passed
 
 try:
     from scipy import stats as _scipy_stats
     _HAVE_SCIPY = True
 except ImportError:  # pragma: no cover
     _HAVE_SCIPY = False
-
-
-class Severity(str, Enum):
-    INFO = "INFO"
-    LOW = "LOW"
-    MEDIUM = "MEDIUM"
-    HIGH = "HIGH"
-    CRITICAL = "CRITICAL"
 
 
 # Placeholder p-value cutoffs. NOT yet calibrated against the real
@@ -123,47 +125,11 @@ def _severity_from_pvalue(p: Optional[float]) -> Severity:
     return Severity.INFO
 
 
-@dataclass
-class LayerStegoFinding:
-    layer_name: str
-    test_name: str
-    severity: Severity
-    statistic: float
-    p_value: Optional[float]
-    message: str
-
-    def to_dict(self) -> dict:
-        return {
-            "layer_name": self.layer_name,
-            "test_name": self.test_name,
-            "severity": self.severity.value,
-            "statistic": self.statistic,
-            "p_value": self.p_value,
-            "message": self.message,
-        }
-
-
-@dataclass
-class StegoReport:
-    findings: list[LayerStegoFinding] = field(default_factory=list)
-    layers_analyzed: int = 0
-    layers_skipped: int = 0
-
-    @property
-    def max_severity(self) -> Severity:
-        order = [Severity.INFO, Severity.LOW, Severity.MEDIUM,
-                 Severity.HIGH, Severity.CRITICAL]
-        if not self.findings:
-            return Severity.INFO
-        return max(self.findings, key=lambda f: order.index(f.severity)).severity
-
-    def to_dict(self) -> dict:
-        return {
-            "findings": [f.to_dict() for f in self.findings],
-            "layers_analyzed": self.layers_analyzed,
-            "layers_skipped": self.layers_skipped,
-            "max_severity": self.max_severity.value,
-        }
+def _passed_for_severity(severity: Severity) -> bool:
+    """Same convention Stages 1-3 use: INFO/LOW findings pass; MEDIUM+
+    findings don't (severity is still a triage label, not control flow —
+    see the module docstring's 'no hard_fail' note)."""
+    return severity in (Severity.INFO, Severity.LOW)
 
 
 # ---------------------------------------------------------------------
@@ -411,58 +377,62 @@ def _regularized_gamma_q(a: float, x: float) -> float:
 
 def analyze_layer(
     layer_name: str, tensor: np.ndarray, n_bits: int = 4, n_blocks: int = 16
-) -> list[LayerStegoFinding]:
+) -> list[Finding]:
+    """One Finding per test, using the shared Finding/Severity schema
+    (peekaboo.schema.reports) -- the layer name and each test's raw
+    statistic/p-value live in `details`, since `Finding.check` is meant
+    as a stable per-test-type identifier (matching Stages 1-3's
+    convention), not a per-instance label."""
     bits = extract_mantissa_lsbs(tensor, n_bits=n_bits)
     if bits is None:
         return [
-            LayerStegoFinding(
-                layer_name=layer_name,
-                test_name="dtype_support",
+            Finding(
+                check="dtype_support",
                 severity=Severity.INFO,
-                statistic=0.0,
-                p_value=None,
+                passed=True,
                 message=(
                     f"dtype {tensor.dtype} not supported for mantissa "
                     "extraction (only float32/float16); layer skipped."
                 ),
+                details={"layer_name": layer_name, "dtype": str(tensor.dtype)},
             )
         ]
 
-    findings: list[LayerStegoFinding] = []
+    findings: list[Finding] = []
 
     stat, p = bit_balance_chi_square_test(bits)
+    severity = _severity_from_pvalue(p)
     findings.append(
-        LayerStegoFinding(
-            layer_name=layer_name,
-            test_name="bit_balance_chi_square",
-            severity=_severity_from_pvalue(p),
-            statistic=stat,
-            p_value=p,
+        Finding(
+            check="bit_balance_chi_square",
+            severity=severity,
+            passed=_passed_for_severity(severity),
             message=f"chi2={stat:.3f}, p={p}" if p is not None else "insufficient data",
+            details={"layer_name": layer_name, "statistic": stat, "p_value": p},
         )
     )
 
     stat, p = block_chi_square_homogeneity_test(bits, n_blocks=n_blocks)
+    severity = _severity_from_pvalue(p)
     findings.append(
-        LayerStegoFinding(
-            layer_name=layer_name,
-            test_name="block_homogeneity_chi_square",
-            severity=_severity_from_pvalue(p),
-            statistic=stat,
-            p_value=p,
+        Finding(
+            check="block_homogeneity_chi_square",
+            severity=severity,
+            passed=_passed_for_severity(severity),
             message=f"chi2={stat:.3f}, p={p}" if p is not None else "insufficient data",
+            details={"layer_name": layer_name, "statistic": stat, "p_value": p},
         )
     )
 
     z, p, runs, expected = runs_test(bits)
+    severity = _severity_from_pvalue(p)
     findings.append(
-        LayerStegoFinding(
-            layer_name=layer_name,
-            test_name="wald_wolfowitz_runs",
-            severity=_severity_from_pvalue(p),
-            statistic=z,
-            p_value=p,
+        Finding(
+            check="wald_wolfowitz_runs",
+            severity=severity,
+            passed=_passed_for_severity(severity),
             message=f"runs={runs}, expected={expected:.1f}, z={z:.3f}",
+            details={"layer_name": layer_name, "statistic": z, "p_value": p},
         )
     )
 
@@ -470,21 +440,20 @@ def analyze_layer(
     for lag, corr in autocorr.items():
         # No formal null-distribution p-value here (would need a
         # permutation test against this layer's own bit count to be
-        # rigorous) — reported as informational until Phase 3 adds a
-        # permutation-based significance test. Flagged, not silently
+        # rigorous) — reported as informational until a later pass adds
+        # a permutation-based significance test. Flagged, not silently
         # treated as a real p-value.
         severity = Severity.LOW if abs(corr) > 0.1 else Severity.INFO
         findings.append(
-            LayerStegoFinding(
-                layer_name=layer_name,
-                test_name=f"bit_autocorrelation_lag{lag}",
+            Finding(
+                check=f"bit_autocorrelation_lag{lag}",
                 severity=severity,
-                statistic=corr,
-                p_value=None,
+                passed=_passed_for_severity(severity),
                 message=(
                     f"corr={corr:.4f} at lag {lag} "
                     "(no permutation-test p-value yet — informational only)"
                 ),
+                details={"layer_name": layer_name, "statistic": corr, "p_value": None},
             )
         )
 
@@ -496,15 +465,26 @@ def analyze_model(model: LoadedModel, n_bits: int = 4) -> StegoReport:
     (peekaboo.loaders.load_model) -- the same LoadedModel type Stage 2
     (run_structural_check) and Stage 3 (run_statistical_check) take, for
     consistency across the pipeline."""
-    report = StegoReport()
+    findings: list[Finding] = []
+    layers_analyzed = 0
+    layers_skipped = 0
     for name, tensor_info in model.tensors.items():
         layer_findings = analyze_layer(name, tensor_info.array, n_bits=n_bits)
-        report.findings.extend(layer_findings)
-        if len(layer_findings) == 1 and layer_findings[0].test_name == "dtype_support":
-            report.layers_skipped += 1
+        findings.extend(layer_findings)
+        if len(layer_findings) == 1 and layer_findings[0].check == "dtype_support":
+            layers_skipped += 1
         else:
-            report.layers_analyzed += 1
-    return report
+            layers_analyzed += 1
+    return StegoReport(
+        model_path=model.source_path,
+        passed=compute_passed(findings),
+        findings=findings,
+        metadata={
+            "n_bits": n_bits,
+            "layers_analyzed": layers_analyzed,
+            "layers_skipped": layers_skipped,
+        },
+    )
 
 
 # ---------------------------------------------------------------------
@@ -527,6 +507,6 @@ def calibrate_on_clean(model: LoadedModel, n_bits: int = 4) -> dict:
     return {
         "total_findings": len(report.findings),
         "by_severity": counts,
-        "layers_analyzed": report.layers_analyzed,
-        "layers_skipped": report.layers_skipped,
+        "layers_analyzed": report.metadata["layers_analyzed"],
+        "layers_skipped": report.metadata["layers_skipped"],
     }
