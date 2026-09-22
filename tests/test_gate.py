@@ -1,4 +1,4 @@
-"""Tests for the Phase 1 pipeline gate: run_pre_checks."""
+"""Tests for the Phase 1-2 pipeline gate: run_pre_checks."""
 
 from __future__ import annotations
 
@@ -9,13 +9,14 @@ import pytest
 
 from peekaboo.loaders.common import LoadedModel
 from peekaboo.pipeline import ArchitectureSpec, LayerSpec, PreCheckResult, run_pre_checks
-from peekaboo.schema import MetadataReport, StructuralReport
+from peekaboo.schema import MetadataReport, StatisticalReport, StructuralReport
 
 
 class TestHardFailShortCircuits:
-    """The core contract: on a Stage 1 hard-fail, Stage 2 must never run
-    and the model must never be loaded — not just "the result looks like
-    it wasn't run", but verified by making both raise if called."""
+    """The core contract: on a Stage 1 hard-fail, Stage 2 and Stage 3 must
+    never run and the model must never be loaded — not just "the result
+    looks like it wasn't run", but verified by making all three raise if
+    called."""
 
     def test_unsafe_pickle_short_circuits_before_load_and_structural(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -25,6 +26,7 @@ class TestHardFailShortCircuits:
 
         monkeypatch.setattr("peekaboo.pipeline.gate.load_model", _must_not_be_called)
         monkeypatch.setattr("peekaboo.pipeline.gate.run_structural_check", _must_not_be_called)
+        monkeypatch.setattr("peekaboo.pipeline.gate.run_statistical_check", _must_not_be_called)
 
         class Evil:
             def __reduce__(self):
@@ -40,6 +42,7 @@ class TestHardFailShortCircuits:
         assert result.metadata.hard_fail
         assert result.stopped_at_metadata
         assert result.structural is None
+        assert result.statistical is None
         assert result.loaded_model is None
 
     def test_corrupted_safetensors_short_circuits(
@@ -50,6 +53,7 @@ class TestHardFailShortCircuits:
 
         monkeypatch.setattr("peekaboo.pipeline.gate.load_model", _must_not_be_called)
         monkeypatch.setattr("peekaboo.pipeline.gate.run_structural_check", _must_not_be_called)
+        monkeypatch.setattr("peekaboo.pipeline.gate.run_statistical_check", _must_not_be_called)
 
         import struct
 
@@ -60,16 +64,18 @@ class TestHardFailShortCircuits:
 
         assert result.metadata.hard_fail
         assert result.structural is None
+        assert result.statistical is None
         assert result.loaded_model is None
 
 
-class TestNormalFlowRunsBothStages:
-    def test_clean_model_runs_both_stages(self, benchmark_dir: Path) -> None:
+class TestNormalFlowRunsAllStages:
+    def test_clean_model_runs_all_stages(self, benchmark_dir: Path) -> None:
         result = run_pre_checks(str(benchmark_dir / "clean.safetensors"))
 
         assert isinstance(result, PreCheckResult)
         assert isinstance(result.metadata, MetadataReport)
         assert isinstance(result.structural, StructuralReport)
+        assert isinstance(result.statistical, StatisticalReport)
         assert isinstance(result.loaded_model, LoadedModel)
         assert not result.stopped_at_metadata
 
@@ -77,9 +83,11 @@ class TestNormalFlowRunsBothStages:
         assert result.metadata.passed
         assert result.structural.passed
         assert result.structural.mode == "self_consistency"
+        assert result.statistical.passed
+        assert result.statistical.mode == "relative_outlier"
         assert len(result.loaded_model) > 0
 
-    def test_soft_fail_metadata_still_runs_structural(self, tmp_path: Path) -> None:
+    def test_soft_fail_metadata_still_runs_structural_and_statistical(self, tmp_path: Path) -> None:
         """A metadata finding that fails but isn't CRITICAL (e.g. an extra
         safetensors header key) must NOT stop the pipeline — only
         hard_fail does."""
@@ -104,6 +112,7 @@ class TestNormalFlowRunsBothStages:
         assert not result.metadata.hard_fail
         assert not result.metadata.passed  # the extra-key finding still fails the report
         assert result.structural is not None  # but Stage 2 still ran
+        assert result.statistical is not None  # and Stage 3 still ran
         assert result.loaded_model is not None
 
 
@@ -120,6 +129,9 @@ class TestSpecPassthrough:
 
         assert result.structural.mode == "spec_diff"
         assert result.structural.passed
+        # Stage 3 takes no spec — it only ever looks at tensor values, not
+        # architecture, so it still runs in its normal relative/fallback mode.
+        assert result.statistical is not None
 
 
 class TestPreCheckResultToDict:
@@ -136,6 +148,7 @@ class TestPreCheckResultToDict:
         d = result.to_dict()
         assert d["stopped_at_metadata"] is True
         assert d["structural"] is None
+        assert d["statistical"] is None
         assert d["metadata"]["hard_fail"] is True
 
     def test_to_dict_on_full_result(self, benchmark_dir: Path) -> None:
@@ -143,6 +156,7 @@ class TestPreCheckResultToDict:
         d = result.to_dict()
         assert d["stopped_at_metadata"] is False
         assert d["structural"]["mode"] == "self_consistency"
+        assert d["statistical"]["mode"] == "relative_outlier"
         assert d["metadata"]["passed"] is True
 
 
@@ -156,3 +170,12 @@ class TestFullBenchmarkMatrixThroughTheGate:
         assert not result.stopped_at_metadata
         assert result.metadata.passed
         assert result.structural.passed
+        # Stage 3 always runs and never gates, but its `passed` is NOT
+        # asserted true here for every variant: per PHASE2.md, the
+        # backdoored/combined ONNX exports produce one genuine (if weak)
+        # MEDIUM kurtosis_outliers finding on conv4.weight, so `passed` is
+        # False there by design (compute_passed requires every finding to
+        # pass). Asserting it unconditionally would either mask that
+        # finding or force a false-positive-prone threshold change.
+        assert result.statistical is not None
+        assert result.statistical.mode == "relative_outlier"
