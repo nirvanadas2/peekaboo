@@ -25,24 +25,47 @@ Phase 4: Behavioral Probing (Stage 5). This stage runs the model on patched prob
 
 See [PHASE4.md](PHASE4.md).
 
-Phase 5: Anomaly Fusion (Stage 6). This stage combines the evidence from Stages 3-5 into a `ModelRiskScore`. It keeps a pillar that didn't run distinct from one that ran and found nothing. `run_pre_checks` now runs Stages 1-6, with Stage 5 opt-in via `forward_fn`.
+Phase 5: Anomaly Fusion (Stage 6). This stage combines the evidence from Stages 3-5 into a `ModelRiskScore`. A pillar that didn't run is marked "not assessed", never "clean". Stage 4 and Stage 3 false-positive fixes were validated on a pre-registered fresh suite. See [PHASE5.md](PHASE5.md).
 
-End-to-end runs on independent clean models exposed Stage 3 and Stage 4 false positives. Both stages were fixed: Stage 4 is now init-lattice aware, and Stage 3 uses a noise-aware z for mean and kurtosis. Both fixes were validated on a pre-registered fresh suite of 50 models:
-- **Stage 4:** 0/10 clean false positives, 9/10 noise recall.
-- **Stage 5:** 0/10 clean false positives, 8/10 backdoor recall.
-- **Stage 3:** still 4/10 clean false positives (now from entropy).
-- **Fused ROC AUC:** noisy 0.98, backdoored 0.91.
+Phase 6: Explainable Report (Stage 7), plus final validation. Stage 3 is now report-only. The explainable report comes as Markdown or JSON, and the CLI returns CI-friendly exit codes. The complete system was validated once on a final pre-registered suite:
+- **Clean false positives:** 0/10.
+- **Backdoors:** 9/10 with a `forward_fn` (AUC 0.95); reported as *not assessed* without one.
+- **Noise:** 7/10.
 
-See [PHASE5.md](PHASE5.md). The explainable report (Stage 7) is not started.
+Cumulative held-out results:
+- **Backdoors:** 21/26 detected, 0/78 false positives.
+- **Noise:** 16/20 detected, 0/80 false positives.
+- **Stego:** encrypted payloads are undetectable, and the benchmark's small payload is not detected.
+
+See [PHASE6.md](PHASE6.md) for what the project can and cannot claim.
 
 Every benchmark-backed number is measured on committed fixtures (`tests/fixtures/`), because regenerated weights differ in their lowest mantissa bits across torch/CPU builds.
+
+## Usage
+
+```
+python -m peekaboo scan model.safetensors --md report.md --json report.json
+```
+
+The exit code is 0 for no scored evidence, 1 for MEDIUM, 2 for HIGH, and 3 for an unsafe file. Probing for backdoors needs a runnable model:
+
+```python
+from peekaboo.pipeline import run_pre_checks
+from peekaboo.report import render_markdown
+
+result = run_pre_checks(path, forward_fn=my_batch_to_logits, input_shape=(1, 16, 16), num_classes=4)
+print(render_markdown(result))
+```
+
+`--tinycnn` supplies the forward function for this repo's synthetic benchmark files only.
 
 ## Layout
 
 - `peekaboo/loaders/` — load `.safetensors`, `.pt`/`.pth`, and `.onnx` files into a common internal representation (layer names, shapes, dtypes, raw tensors).
 - `peekaboo/benchmark/` — generates small synthetic models with known ground-truth tampering for testing detectors.
+- `peekaboo/report.py` (Stage 7): the explainable Markdown/JSON report and exit codes. `peekaboo/__main__.py` is the CLI.
 - `peekaboo/schema/` — data classes for the Model Risk Score output, plus the `MetadataReport`/`StructuralReport`/`StatisticalReport`/`StegoReport`/`BehavioralReport`/`Finding` types.
-- `peekaboo/pipeline/`: the pre-check and analysis stages. [PHASE1.md](PHASE1.md) through [PHASE5.md](PHASE5.md) document them.
+- `peekaboo/pipeline/`: the pre-check and analysis stages. [PHASE1.md](PHASE1.md) through [PHASE6.md](PHASE6.md) document them.
   - `metadata_check.py` (Stage 1)
   - `structural_check.py` (Stage 2)
   - `statistical_check.py` (Stage 3)

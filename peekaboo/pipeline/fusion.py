@@ -20,15 +20,17 @@ NOT built):
   i.e. 0.4 at q = 0.05 (the MEDIUM cutoff), rising monotonically to 1.0
   at q <= 1e-10. A pillar that ran with no MEDIUM+ finding scores 0.0.
 
-- Stage 3 (statistical) has no q-values -- its robust z-scores aren't
-  p-values, and converting them would manufacture false precision -- and
-  it detects nothing on the benchmark (PHASE2.md). It contributes via its
-  own severity labels only, CAPPED: any MEDIUM+ Stage 3 finding scores
-  exactly the floor of the flagged range (0.4) and its severity is
-  capped at MEDIUM, so Stage 3 alone can never raise a model above
-  MEDIUM. Not retrofitted in any other way (PHASE3.md's standing rule).
+- Stage 3 (statistical) is REPORT-ONLY (pillar weight 0). It has no
+  q-values -- its robust z-scores aren't p-values -- and on every suite
+  measured it detected nothing while flagging 4/10 fresh clean models
+  (PHASE5.md). Its flags are still computed, labelled (severity capped
+  at MEDIUM, score 0.4 for display) and shown in the pillar, the layer
+  flags and the explanation, but they contribute NOTHING to
+  overall_score, risk_level or layer_risk. (Before this change it
+  contributed at a MEDIUM cap; changed after the fresh-suite results
+  and re-validated on the final suite -- PHASE6.md.)
 
-- Overall score = MAX over pillars that ran. The pillars cover disjoint
+- Overall score = MAX over WEIGHTED pillars that ran. The pillars cover disjoint
   threats on this benchmark (Stage 4: noise; Stage 5: backdoor), so the
   union is the right combination -- averaging would dilute each. Any
   "combined beats single" ablation result is therefore COVERAGE (the
@@ -70,6 +72,8 @@ _SEVERITY_ORDER = list(Severity)
 _MEDIUM_PLUS = (Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL)
 _BEHAVIORAL_CHECKS = ("behavioral_trigger_island", "behavioral_class_asymmetry")
 MODEL_LEVEL = "(model behavior)"
+# 0.0 = report-only: shown, never scored. See module docstring.
+PILLAR_WEIGHTS = {"statistical": 0.0, "steganographic": 1.0, "behavioral": 1.0}
 
 
 def evidence_score(q: float) -> float:
@@ -193,26 +197,35 @@ def fuse(
         "steganographic": _stego_pillar(stego),
         "behavioral": _behavioral_pillar(behavioral),
     }
+    for name, p in pillars.items():
+        p.weight = PILLAR_WEIGHTS[name]
     ran = {n: p for n, p in pillars.items() if p.status != PillarStatus.NOT_RUN}
-    overall = max((p.score for p in ran.values()), default=0.0)
-    all_flags = [flag for p in pillars.values() for flag in p.flags]
-    risk_level = _max_severity(flag.severity for flag in all_flags)
+    scored = {n: p for n, p in ran.items() if p.weight > 0}
+    report_only = [n for n, p in pillars.items() if p.weight == 0]
+    overall = max((p.score * p.weight for p in scored.values()), default=0.0)
+    scored_flags = [flag for p in scored.values() for flag in p.flags]
+    risk_level = _max_severity(flag.severity for flag in scored_flags)
 
+    all_flags = [flag for p in pillars.values() for flag in p.flags]
     layer_flags = [f for f in all_flags if f.layer_name != MODEL_LEVEL]
     layer_risk: dict[str, float] = {}
-    for flag in layer_flags:
+    for flag in (f for f in scored_flags if f.layer_name != MODEL_LEVEL):
         layer_risk[flag.layer_name] = max(layer_risk.get(flag.layer_name, 0.0), flag.score)
 
-    if not ran:
-        text = "No pillar ran; no risk assessment is possible."
+    if not scored:
+        text = "No scored pillar ran; no risk assessment is possible."
     elif overall == 0.0:
-        text = f"No MEDIUM+ evidence from the pillars that ran ({', '.join(ran)})."
+        text = f"No MEDIUM+ evidence from the scored pillars that ran ({', '.join(scored)})."
     else:
-        driver = max(ran.values(), key=lambda p: p.score)
+        driver = max(scored.values(), key=lambda p: p.score)
         text = (
             f"Risk {risk_level.value.upper()} (score {overall:.2f}) driven by the {driver.name} pillar: "
             f"{driver.summary}."
         )
+    for name in report_only:
+        p = pillars[name]
+        if p.status == PillarStatus.FLAGGED:
+            text += f" The {name} pillar also flagged {len(p.flags)} item(s) -- report-only, not scored (PHASE6.md)."
     not_run = [n for n, p in pillars.items() if p.status == PillarStatus.NOT_RUN]
     if not_run:
         text += f" NOT assessed: {', '.join(not_run)} -- absence of evidence, not evidence of absence."
@@ -226,11 +239,13 @@ def fuse(
         layer_flags=sorted(layer_flags, key=lambda f: -f.score),
         explanation=Explanation(
             text=text,
-            feature_attributions={n: p.score for n, p in pillars.items() if p.score is not None},
+            feature_attributions={n: p.score * p.weight for n, p in pillars.items() if p.score is not None},
         ),
         metadata={
-            "fusion": "max_over_pillars_run",
+            "fusion": "max_over_weighted_pillars_run",
             "risk_level": risk_level.value,
+            "pillar_weights": dict(PILLAR_WEIGHTS),
+            "report_only_pillars": report_only,
             "pillars_run": list(ran),
             "pillars_not_run": not_run,
             "layer_risk": dict(sorted(layer_risk.items(), key=lambda kv: -kv[1])),

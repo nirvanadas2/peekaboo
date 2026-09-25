@@ -117,13 +117,27 @@ class TestFusionRules:
         assert r.explanation.feature_attributions["steganographic"] == pytest.approx(r.overall_score)
         assert "steganographic pillar" in r.explanation.text
 
-    def test_stage3_is_capped(self):
-        """Stage 3 alone can never exceed MEDIUM / the flagged floor."""
+    def test_stage3_is_report_only(self):
+        """Stage 3 flags are shown (capped at MEDIUM) but never scored
+        (PHASE6.md)."""
         r = fuse("m", statistical=_stat({"conv1.weight": {"value": 1.0, "modified_z_score": 50.0, "severity": "high"}}, Severity.HIGH))
-        assert r.overall_score == pytest.approx(0.4)
-        assert r.metadata["risk_level"] == "medium"
-        flag = r.layer_flags[0]
+        assert r.statistical.status == PillarStatus.FLAGGED
+        assert r.statistical.weight == 0.0
+        assert r.overall_score == 0.0
+        assert r.metadata["risk_level"] == "info"
+        assert r.metadata["report_only_pillars"] == ["statistical"]
+        assert r.metadata["layer_risk"] == {}
+        assert r.explanation.feature_attributions["statistical"] == 0.0
+        assert "report-only" in r.explanation.text
+        flag = r.layer_flags[0]  # still visible
         assert flag.severity == Severity.MEDIUM and flag.details["uncapped_severity"] == "high"
+
+    def test_stage3_does_not_change_a_scored_result(self):
+        with_s3 = fuse("m", statistical=_stat({"conv1.weight": {"value": 1.0, "severity": "high"}}, Severity.HIGH),
+                       stego=_stego(q=1e-4))
+        without = fuse("m", statistical=_stat(), stego=_stego(q=1e-4))
+        assert with_s3.overall_score == without.overall_score
+        assert with_s3.metadata["risk_level"] == without.metadata["risk_level"]
 
     def test_behavioral_flags_are_model_level_not_layer_flags(self):
         r = fuse("m", stego=_stego(q=1e-3), behavioral=_behavioral(q=1e-4))
@@ -241,6 +255,13 @@ class TestFreshSuite:
         assert count("backdoored", _S5) == 8
         assert sum(bool(e["clean"]) for e in _EXPECTED_FRESH.values()) == 4  # all Stage 3
 
+    @pytest.mark.parametrize("seed", [s for s, e in _EXPECTED_FRESH.items() if e["clean"] == {_S3}])
+    def test_stage3_only_clean_models_now_score_zero(self, seed):
+        """Post-hoc on this (spent) suite -- the held-out check of the
+        report-only change is TestFinalSuite."""
+        rs = _scan(FRESH_DIR / f"seed{seed}" / "clean.safetensors", probe=True)
+        assert rs.overall_score == 0.0 and rs.metadata["risk_level"] == "info"
+
     @pytest.mark.parametrize("seed", [s for s, e in _EXPECTED_FRESH.items() if _S5 in e["backdoored"]])
     def test_asymmetry_names_true_target(self, seed):
         import json
@@ -250,3 +271,47 @@ class TestFreshSuite:
         rs = _scan(FRESH_DIR / f"seed{seed}" / "backdoored.safetensors", probe=True)
         asym = [f for f in rs.behavioral.flags if f.flag_type == "behavioral_class_asymmetry"]
         assert all(f.details["over_represented_class"] == target for f in asym)
+
+
+FINAL_DIR = Path(__file__).parent / "fixtures" / "final_validation"
+
+# Final pre-registered suite (seeds 20-29), registered BEFORE Stage 3 was
+# made report-only and Stage 7 was built; run ONCE on the complete frozen
+# system (PHASE6.md). Flagged pillars (Stage 3 is flagged-but-unscored).
+_EXPECTED_FINAL = {
+    20: {"clean": set(), "noisy": {_S4}, "backdoored": {_S5}},
+    21: {"clean": set(), "noisy": {_S4}, "backdoored": {_S5}},
+    22: {"clean": set(), "noisy": set(), "backdoored": set()},  # noise + backdoor both missed
+    23: {"clean": set(), "noisy": {_S4}, "backdoored": {_S3, _S5}},
+    24: {"clean": set(), "noisy": {_S4}, "backdoored": {_S5}},
+    25: {"clean": set(), "noisy": set(), "backdoored": {_S5}},  # noise missed
+    26: {"clean": set(), "noisy": {_S4}, "backdoored": {_S5}},
+    27: {"clean": set(), "noisy": {_S4}, "backdoored": {_S5}},
+    28: {"clean": {_S3}, "noisy": set(), "backdoored": {_S3, _S5}},  # noise missed
+    29: {"clean": set(), "noisy": {_S4}, "backdoored": {_S3, _S5}},
+}
+
+
+class TestFinalSuite:
+    @pytest.mark.parametrize(
+        "seed,variant", [(s, v) for s in sorted(_EXPECTED_FINAL) for v in ("clean", "noisy", "backdoored")]
+    )
+    def test_flagged_pillars_as_measured(self, seed, variant):
+        rs = _scan(FINAL_DIR / f"seed{seed}" / f"{variant}.safetensors", probe=True)
+        expected = _EXPECTED_FINAL[seed][variant]
+        assert _flagged(rs) == expected
+        # the score is driven only by scored pillars (Stage 3 is report-only)
+        assert (rs.overall_score > 0) == bool(expected - {_S3})
+
+    def test_headline_counts(self):
+        def count(variant, pillar):
+            return sum(pillar in e[variant] for e in _EXPECTED_FINAL.values())
+
+        assert sum(bool(e["clean"] - {_S3}) for e in _EXPECTED_FINAL.values()) == 0  # fused clean FPs
+        assert count("noisy", _S4) == 7
+        assert count("backdoored", _S5) == 9
+
+    def test_without_forward_fn_backdoors_are_not_assessed_not_clean(self):
+        rs = _scan(FINAL_DIR / "seed20" / "backdoored.safetensors", probe=False)
+        assert rs.behavioral.status == PillarStatus.NOT_RUN
+        assert rs.overall_score == 0.0 and "NOT assessed: behavioral" in rs.explanation.text

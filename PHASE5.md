@@ -16,8 +16,9 @@ at the end):
 | Stage 3 | **still 4/10 clean false positives**, now from entropy |
 | Fused | every false positive comes from Stage 3, capped at MEDIUM/0.4 |
 
-Whether Stage 3 should keep any weight in the score is flagged for the
-team.
+**Update (PHASE6.md):** Stage 3 was later made report-only, and the
+complete system was validated on a final pre-registered suite. Its
+fused clean false positives were 0/10.
 
 The sections below "Design decisions" record the *first* run as it was
 measured, before the fixes.
@@ -317,6 +318,8 @@ What this shows, stage by stage:
   Stage 5 finding on the fresh suite scores 0.42 or more.
 
 ## Still open (for the team)
+
+*Items 1 and 4 were resolved in PHASE6.md: Stage 3 is report-only, and Stage 7 is built.*
 
 1. **Stage 3's weight in the score.** It detects nothing on any suite and
    still has a 4/10 clean false-positive rate. Options are to keep the
