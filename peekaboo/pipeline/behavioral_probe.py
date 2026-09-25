@@ -4,9 +4,11 @@ peekaboo/pipeline/behavioral_probe.py
 Stage 5: Behavioral Probing
 ============================
 
-Design doc: PHASE4.md. This is the first implementation pass; read
-PHASE4.md before extending it -- several scope decisions made there are
-repeated here only in summary.
+Design doc: PHASE4.md. Read its "Held-out validation" sections before
+extending this -- the method below replaced a first implementation that
+was shown NOT to discriminate on the real benchmark, and the current
+method's measured recall/false-positive numbers (and their limits) are
+recorded there.
 
 Purpose
 -------
@@ -15,35 +17,24 @@ distributions, mantissa bits) without ever running it. That makes them
 blind to a backdoor's actual defining behavior -- a trigger input
 forcing a specific, wrong classification. Stage 5 closes that gap by
 actually executing the model against many probe inputs and looking for
-that forced-classification signature.
+that forced-classification signature. On this project's benchmark, no
+static stage detects the backdoor at all (PHASE2.md, PHASE3.md).
 
 NOT wired into gate.py / run_pre_checks
 ----------------------------------------
-Unlike Stages 1-3 (wired) and Stage 4 (implemented but deliberately not
-yet wired), this stage is not folded into the default pipeline at all,
-and that isn't a "not done yet" placeholder -- it's a deliberate first-
-pass decision. Two reasons, both structural, not just "still needs
-calibration":
+Two structural reasons:
 
 1. Cost. Stages 1-4 are a single pass over static tensor data. Stage 5
-   requires actually running the model many times (carriers x candidate
-   patches x bootstrap control trials -- see below), which is a
-   qualitatively different, caller-tunable cost, not something every
-   `run_pre_checks` call should be forced to pay.
+   runs the model many times (carriers x candidate patches), a
+   qualitatively different, caller-tunable cost.
 2. Runnability. Per PHASE4.md Sec 1, most real-world models (safetensors,
    pytorch pickle) cannot be run from a `LoadedModel` alone -- there is
    no computation graph in those formats, and the pickle loader's
    restricted unpickler deliberately refuses to reconstruct one (that
    refusal is Stage 1's safety gate, not a limitation to route around).
-   This stage requires a caller-supplied `forward_fn`. Native ONNX
-   execution (which does carry a graph) was flagged in PHASE4.md as
-   needing a new `onnxruntime` dependency -- a decision requiring
-   approval, matching the project's established no-new-dependency-
-   without-discussion pattern (see Stage 3/4's scipy avoidance). That
-   approval hasn't been given, so this first pass supports ONLY the
-   caller-supplied `forward_fn` path, for every format including ONNX.
-   `run_behavioral_check` is a standalone entry point; call it
-   explicitly, not through `run_pre_checks`.
+   This stage requires a caller-supplied `forward_fn`, for every format
+   including ONNX (no `onnxruntime` dependency; `onnx.reference` works
+   but is slow -- see peekaboo/benchmark/runnable.py).
 
 The not-runnable case is never a silent skip
 ----------------------------------------------
@@ -56,61 +47,72 @@ Score should key off of to tell "probed, found nothing" apart from
 
 Method
 ------
-Paired carrier probing against a parameterized patch family (PHASE4.md
-Sec 2) -- NOT a replay of any specific known trigger (that would be
-circular, see PHASE4.md Sec 3):
+Carriers (mostly N(0,1) noise, plus a few constant carriers) are stamped
+with constant-color square patches over a half-stride grid of positions
+(patch side = `patch_size_fractions` x input extent; colors in units of
+the carrier noise's sigma, which is 1 by construction). Each patched
+batch's predictions give, per position, the class the patch *forces*
+(majority) and how reliably. Two complementary hypothesis families are
+tested on that, because backdoors of the same attack come out in two
+different shapes (PHASE4.md "Why it missed"):
 
-1. Draw carrier inputs: mostly random noise, plus a handful of
-   structured (constant-value) carriers, at the caller-supplied
-   `input_shape`.
-2. Build a grid of candidate patches -- varying position, size (as
-   fractions of the input's spatial/feature extent), and color/
-   intensity -- and stamp each onto every carrier.
-3. For each patch footprint (size), build an empirical null
-   distribution of "how much does an occlusion this size normally
-   concentrate predictions onto one class" from many random-CONTENT
-   control patches of the same footprint, on the same carriers. This
-   isolates "trigger-like forced classification" from the mundane fact
-   that any big enough occlusion perturbs some predictions on any
-   classifier, backdoored or not (PHASE4.md Sec 4).
-4. Compare each candidate's class-concentration statistic against that
-   footprint's own null distribution -> an empirical p-value.
-5. Apply Benjamini-Hochberg FDR correction across every candidate patch
-   compared in the same report -- built into this first implementation,
-   not deferred. PHASE4.md Sec 4 is explicit that Stage 5's patch grid
-   is a *larger* multiple-comparisons problem than Stage 4's already-
-   documented 84-tests-uncorrected gap (PHASE3.md), and that mistake
-   must not be repeated here.
+1. ISLAND (local inconsistency) -- catches POINT-like backdoors. A
+   legitimate decision feature should be spatially smooth; a small
+   trigger forms an island. For each patch p with forced class k, and
+   each grid neighbour q within one patch-width: an exact one-sided
+   McNemar test, paired over carriers, of "p sends carriers to k more
+   often than q does". p's p-value is the MAX over neighbours (an
+   intersection-union test: an island must differ from ALL of them).
+2. CLASS-REACH ASYMMETRY -- catches REGION-like backdoors, where a whole
+   area has been hijacked to the target class (so there is no island).
+   Per color, over NON-overlapping positions: how many positions force
+   each class (majority hit >= 0.5). Chi-square goodness-of-fit vs.
+   uniform. ASSUMPTION: under clean behavior, bright patches reach every
+   class about equally often. That holds for this benchmark's
+   spatially-symmetric quadrant task by construction; it is NOT a
+   general property of real classifiers, and would need a per-model
+   baseline there.
 
-A cheap, deliberately weaker secondary signal (plain random-noise-only
-class concentration, no patch involved) is also reported, capped at LOW
-severity -- see `_max_class_hit_rate`'s use in the baseline finding.
+Benjamini-Hochberg FDR is applied PER FAMILY (island candidates;
+asymmetry tests) -- pooling ~100 dependent island tests with 2
+asymmetry tests drowned the latter. Consequence: the report-wide FDR is
+bounded by the SUM of the per-family levels (<= 2 x fdr_alpha_medium at
+MEDIUM), not by one alpha.
+
+Default colors are bright only (+3 sigma, +6 sigma). Dark patches were
+excluded on development data: clean models' responses to them are
+legitimately skewed, and every island false positive observed in
+development came from a dark patch. Consequence: dark-colored triggers
+are out of scope by default.
+
+Known limits (measured -- PHASE4.md):
+  - Held-out: 4/6 backdoors detected (all HIGH), 0/18 false positives on
+    clean/noisy/steganographic models. Small samples -- wide intervals.
+  - The ASYMMETRY finding names the target class correctly; ISLAND
+    findings do NOT reliably localize the trigger (on region backdoors
+    they can flag the legitimate cells surrounded by the hijacked area).
+    Treat island positions as hints, not trigger locations.
+  - A cheap secondary signal (unpatched-carrier class concentration) is
+    also reported, never above LOW.
 
 Circularity (read before trusting any output)
 ------------------------------------------------
-This module's candidate-patch grid is a generic, parameterized search
-over position/size/color -- it does not know about, and is not centered
-on, this project's own benchmark trigger (`peekaboo/benchmark/data.py`'s
-3x3/value=6.0/top-left patch). That is intentional (PHASE4.md Sec 3):
-searching specifically for the known trigger would prove nothing beyond
-"we can find what we ourselves planted." Any validation against the real
-benchmark must run this generic search *blind* and check whether it
-happens to land near the known trigger's position/size -- never
-special-cased to look there. This module only instantiates one trigger
-*family* (localized high-contrast patches); blended, frequency-domain,
-warping, and semantic triggers are out of scope for this pass, per
-PHASE4.md Sec 3.
+The candidate grid is a generic search over position/size/color; it
+does not know about, and is not centered on, the benchmark trigger.
+Validation must run blind, on backdoors the design never saw (PHASE4.md
+Sec 3 and "Pre-registered held-out suite"). Only localized
+high-contrast patch triggers are in scope; blended, frequency-domain,
+warping, and semantic triggers are not.
 
 Shared schema
 -------------
 Uses `peekaboo.schema.reports.Finding`/`BehavioralReport`/
-`compute_passed` and `peekaboo.schema.model_risk_score.Severity` --
-the same convention Stage 3 established and Stage 4 has now been fixed
-to follow, rather than adding a third inconsistent shape.
+`compute_passed` and `peekaboo.schema.model_risk_score.Severity`.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -118,6 +120,7 @@ import numpy as np
 
 from peekaboo.loaders.common import LoadedModel
 from peekaboo.pipeline.multiple_testing import benjamini_hochberg
+from peekaboo.pipeline.stego_check import _chi2_sf
 from peekaboo.schema.model_risk_score import Severity
 from peekaboo.schema.reports import BehavioralReport, Finding, compute_passed
 
@@ -127,6 +130,10 @@ from peekaboo.schema.reports import BehavioralReport, Finding, compute_passed
 # phenomenon that classifiers often collapse toward one class on pure
 # out-of-distribution input, backdoor or not (PHASE4.md Sec 2/4).
 _STRUCTURED_CARRIER_VALUES: tuple[float, ...] = (-2.0, -1.0, 0.0, 1.0, 2.0)
+
+# A position "reaches" a class for the asymmetry test when its patch
+# forces that class on at least this fraction of carriers.
+_REACH_MIN_HIT_RATE = 0.5
 
 
 def _passed_for_severity(severity: Severity) -> bool:
@@ -180,15 +187,21 @@ class _Footprint:
 
 
 def _iter_footprints(
-    input_shape: tuple[int, ...], patch_size_fractions: tuple[float, ...]
+    input_shape: tuple[int, ...],
+    patch_size_fractions: tuple[float, ...],
+    stride_divisor: int = 1,
 ) -> list[_Footprint]:
+    """Positions step by `size // stride_divisor` (at least 1):
+    stride_divisor=1 gives non-overlapping positions, 2 a half-stride
+    (overlapping) grid."""
     footprints: list[_Footprint] = []
     if len(input_shape) >= 2:
         h, w = input_shape[-2], input_shape[-1]
         extent = min(h, w)
         sizes = sorted({min(max(1, round(frac * extent)), h, w) for frac in patch_size_fractions})
         for s in sizes:
-            positions = [(r, c) for r in range(0, h - s + 1, s) for c in range(0, w - s + 1, s)]
+            step = max(1, s // stride_divisor)
+            positions = [(r, c) for r in range(0, h - s + 1, step) for c in range(0, w - s + 1, step)]
             if not positions:
                 positions = [(0, 0)]
             footprints.append(_Footprint(kind="box", size=s, positions=positions))
@@ -196,7 +209,8 @@ def _iter_footprints(
         d = input_shape[-1] if input_shape else 1
         sizes = sorted({min(max(1, round(frac * d)), d) for frac in patch_size_fractions})
         for s in sizes:
-            positions = list(range(0, d - s + 1, s)) or [0]
+            step = max(1, s // stride_divisor)
+            positions = list(range(0, d - s + 1, step)) or [0]
             footprints.append(_Footprint(kind="segment", size=s, positions=positions))
     return footprints
 
@@ -213,7 +227,7 @@ def _region_shape(carriers: np.ndarray, footprint: _Footprint, position) -> tupl
 
 def _apply_patch(carriers: np.ndarray, footprint: _Footprint, position, fill) -> np.ndarray:
     """Returns a COPY of carriers with the given patch region set to
-    `fill` (a scalar color, or an ndarray of per-carrier random content
+    `fill` (a scalar color, or an ndarray of per-carrier content
     matching the region's shape)."""
     out = carriers.copy()
     if footprint.kind == "box":
@@ -225,6 +239,16 @@ def _apply_patch(carriers: np.ndarray, footprint: _Footprint, position, fill) ->
         s = footprint.size
         out[..., start : start + s] = fill
     return out
+
+
+def _neighbors(footprint: _Footprint, position, grid: set) -> list:
+    """Grid positions within one patch-width (Chebyshev distance for
+    boxes), excluding `position` itself."""
+    s = footprint.size
+    if footprint.kind == "box":
+        r, c = position
+        return [q for q in grid if q != position and abs(q[0] - r) <= s and abs(q[1] - c) <= s]
+    return [q for q in grid if q != position and abs(q - position) <= s]
 
 
 # ---------------------------------------------------------------------
@@ -239,16 +263,48 @@ def _max_class_hit_rate(preds: np.ndarray, num_classes: int) -> tuple[float, int
     return float(counts[majority]) / float(preds.size), majority
 
 
-def _empirical_p_value(null_samples: np.ndarray, observed: float) -> float:
-    """One-sided empirical p-value: P(null >= observed), with the
-    standard +1 continuity correction so a p-value is never exactly
-    zero (matches the permutation-test convention PHASE4.md Sec 4
-    proposes, and Stage 4's own docstring flagged as the rigorous
-    approach it never got to build)."""
-    return float((1 + int(np.sum(null_samples >= observed))) / (null_samples.size + 1))
+def _binom_sf_half(k: int, n: int) -> float:
+    """Exact P(Binomial(n, 0.5) >= k) -- the one-sided exact McNemar
+    p-value for k of n discordant pairs favouring one side."""
+    if n == 0:
+        return 1.0
+    return sum(math.comb(n, i) for i in range(k, n + 1)) / 2.0 ** n
+
+
+def _island_p_value(p_preds: np.ndarray, neighbor_preds: list[np.ndarray], forced_class: int) -> float:
+    """Intersection-union test: max over neighbours of the exact McNemar
+    p-value for "this patch sends carriers to forced_class more often
+    than that neighbour does". 1.0 when there are no neighbours."""
+    worst = 0.0
+    for q_preds in neighbor_preds:
+        b = int(np.sum((p_preds == forced_class) & (q_preds != forced_class)))
+        c = int(np.sum((q_preds == forced_class) & (p_preds != forced_class)))
+        worst = max(worst, _binom_sf_half(b, b + c))
+    return worst if neighbor_preds else 1.0
+
+
+def _reach_asymmetry(reach: np.ndarray) -> tuple[Optional[float], Optional[float]]:
+    """Chi-square goodness-of-fit of per-class reach counts vs. uniform.
+    (None, None) when fewer than 2 decisive positions per class exist --
+    too few to test."""
+    k = reach.size
+    n = int(reach.sum())
+    if n < 2 * k:
+        return None, None
+    expected = n / k
+    chi2 = float(((reach - expected) ** 2 / expected).sum())
+    return chi2, _chi2_sf(chi2, k - 1)
 
 
 _benjamini_hochberg = benjamini_hochberg  # shared with Stage 4; see multiple_testing.py
+
+
+def _severity_from_q(q: float, alpha_high: float, alpha_medium: float) -> Severity:
+    if q < alpha_high:
+        return Severity.HIGH
+    if q < alpha_medium:
+        return Severity.MEDIUM
+    return Severity.LOW
 
 
 # ---------------------------------------------------------------------
@@ -262,9 +318,8 @@ def run_behavioral_check(
     input_shape: Optional[tuple[int, ...]] = None,
     num_classes: Optional[int] = None,
     n_carriers: int = 64,
-    n_bootstrap: int = 64,
-    patch_size_fractions: tuple[float, ...] = (0.25, 0.5),
-    patch_colors: tuple[float, ...] = (-3.0, 3.0),
+    patch_size_fractions: tuple[float, ...] = (0.25,),
+    patch_colors: tuple[float, ...] = (3.0, 6.0),
     fdr_alpha_high: float = 0.01,
     fdr_alpha_medium: float = 0.05,
     raw_p_report_threshold: float = 0.05,
@@ -279,10 +334,12 @@ def run_behavioral_check(
     probing attempted.
 
     `input_shape`/`num_classes` are required whenever `forward_fn` is
-    given -- this stage does not attempt to infer them (recovering the
-    full spatial input shape from weight tensors alone isn't reliable
-    in general; only the caller, who built `forward_fn`, actually knows
-    it).
+    given -- this stage does not attempt to infer them.
+
+    `patch_colors` are in units of the carrier noise's sigma (1 here).
+    The defaults are the design frozen before held-out validation
+    (PHASE4.md); changing them means the validation numbers no longer
+    apply.
     """
     if forward_fn is None:
         finding = Finding(
@@ -315,8 +372,11 @@ def run_behavioral_check(
     rng = np.random.default_rng(seed)
     carriers = _build_carriers(rng, n_carriers, input_shape)
     n_carriers_actual = carriers.shape[0]
+    n_forward_batches = 0
 
     def predict(batch: np.ndarray) -> np.ndarray:
+        nonlocal n_forward_batches
+        n_forward_batches += 1
         out = np.asarray(forward_fn(batch))
         if out.ndim != 2 or out.shape[0] != batch.shape[0] or out.shape[1] != num_classes:
             raise ValueError(
@@ -326,8 +386,8 @@ def run_behavioral_check(
 
     findings: list[Finding] = []
 
-    # --- cheap secondary signal: plain random-noise-only concentration,
-    # never elevated past LOW (PHASE4.md Sec 2, "a cheaper, secondary signal") ---
+    # --- cheap secondary signal: plain carrier class concentration,
+    # never elevated past LOW (PHASE4.md Sec 2) ---
     baseline_preds = predict(carriers)
     baseline_hit_rate, baseline_majority = _max_class_hit_rate(baseline_preds, num_classes)
     uniform = 1.0 / num_classes
@@ -352,72 +412,116 @@ def run_behavioral_check(
         )
     )
 
-    # --- main method: candidate patches vs. per-footprint bootstrap null ---
-    footprints = _iter_footprints(input_shape, patch_size_fractions)
-    candidate_results: list[dict] = []
-    n_control_trials = 0
+    island_results: list[dict] = []
+    asymmetry_results: list[dict] = []
+    grids = _iter_footprints(input_shape, patch_size_fractions, stride_divisor=2)
+    disjoint = {fp.size: fp.positions for fp in _iter_footprints(input_shape, patch_size_fractions)}
 
-    for footprint in footprints:
-        null_samples = np.empty(n_bootstrap, dtype=np.float64)
-        for i in range(n_bootstrap):
-            position = footprint.positions[i % len(footprint.positions)]
-            region_shape = _region_shape(carriers, footprint, position)
-            fill = rng.standard_normal(region_shape).astype(np.float32)
-            patched = _apply_patch(carriers, footprint, position, fill)
-            preds = predict(patched)
-            stat, _ = _max_class_hit_rate(preds, num_classes)
-            null_samples[i] = stat
-            n_control_trials += 1
-
+    for footprint in grids:
+        grid = set(footprint.positions)
         for color in patch_colors:
+            preds: dict = {}
+
+            def preds_at(position):
+                if position not in preds:
+                    preds[position] = predict(_apply_patch(carriers, footprint, position, np.float32(color)))
+                return preds[position]
+
             for position in footprint.positions:
-                patched = _apply_patch(carriers, footprint, position, np.float32(color))
-                preds = predict(patched)
-                stat, majority = _max_class_hit_rate(preds, num_classes)
-                p = _empirical_p_value(null_samples, stat)
-                candidate_results.append(
+                p_preds = preds_at(position)
+                hit, forced = _max_class_hit_rate(p_preds, num_classes)
+                nbrs = _neighbors(footprint, position, grid)
+                island_results.append(
                     {
                         "kind": footprint.kind,
                         "size": footprint.size,
                         "position": list(position) if isinstance(position, tuple) else position,
                         "color": float(color),
-                        "hit_rate": stat,
-                        "majority_class": majority,
-                        "p_value": p,
+                        "forced_class": forced,
+                        "hit_rate": hit,
+                        "n_neighbors": len(nbrs),
+                        "p_value": _island_p_value(p_preds, [preds_at(q) for q in nbrs], forced),
                     }
                 )
 
-    q_values = _benjamini_hochberg([r["p_value"] for r in candidate_results])
-    for r, q in zip(candidate_results, q_values):
+            reach = np.zeros(num_classes, dtype=int)
+            for position in disjoint[footprint.size]:
+                hit, forced = _max_class_hit_rate(preds_at(position), num_classes)
+                if hit >= _REACH_MIN_HIT_RATE:
+                    reach[forced] += 1
+            chi2, p = _reach_asymmetry(reach)
+            asymmetry_results.append(
+                {
+                    "kind": footprint.kind,
+                    "size": footprint.size,
+                    "color": float(color),
+                    "reach": reach.tolist(),
+                    "n_positions": len(disjoint[footprint.size]),
+                    "chi2": chi2,
+                    "p_value": p,
+                    "over_represented_class": int(np.argmax(reach)),
+                    "under_represented_class": int(np.argmin(reach)),
+                }
+            )
+
+    # --- BH per hypothesis family ---
+    for r, q in zip(island_results, benjamini_hochberg([r["p_value"] for r in island_results])):
+        r["fdr_p_value"] = q
+    testable = [r for r in asymmetry_results if r["p_value"] is not None]
+    for r, q in zip(testable, benjamini_hochberg([r["p_value"] for r in testable])):
         r["fdr_p_value"] = q
 
-    n_raw_significant = 0
-    n_fdr_high = 0
-    n_fdr_medium = 0
-    for r in candidate_results:
+    counts = {"island": {"high": 0, "medium": 0}, "asymmetry": {"high": 0, "medium": 0}}
+    n_island_reported = 0
+    for r in island_results:
         if r["p_value"] >= raw_p_report_threshold:
             continue
-        n_raw_significant += 1
-        if r["fdr_p_value"] < fdr_alpha_high:
-            severity = Severity.HIGH
-            n_fdr_high += 1
-        elif r["fdr_p_value"] < fdr_alpha_medium:
-            severity = Severity.MEDIUM
-            n_fdr_medium += 1
-        else:
-            severity = Severity.LOW
+        n_island_reported += 1
+        severity = _severity_from_q(r["fdr_p_value"], fdr_alpha_high, fdr_alpha_medium)
+        if severity.value in counts["island"]:
+            counts["island"][severity.value] += 1
         findings.append(
             Finding(
-                check="behavioral_trigger_patch",
+                check="behavioral_trigger_island",
                 severity=severity,
                 passed=_passed_for_severity(severity),
                 message=(
-                    f"{r['kind']} patch size={r['size']} pos={r['position']} "
-                    f"color={r['color']}: {r['hit_rate']:.2%} of carriers -> "
-                    f"class {r['majority_class']} (raw p={r['p_value']:.4g}, "
-                    f"FDR-adjusted p={r['fdr_p_value']:.4g} across "
-                    f"{len(candidate_results)} candidates tested this report)"
+                    f"{r['kind']} patch size={r['size']} pos={r['position']} color=+{r['color']:g}sigma "
+                    f"forces class {r['forced_class']} on {r['hit_rate']:.0%} of carriers, more than "
+                    f"all {r['n_neighbors']} neighbouring positions (worst-neighbour exact McNemar "
+                    f"p={r['p_value']:.3g}, BH q={r['fdr_p_value']:.3g} over {len(island_results)} "
+                    "island candidates). Position is a hint, not a trigger location."
                 ),
+                details=dict(r),
+            )
+        )
+
+    for r in asymmetry_results:
+        if r["p_value"] is None:
+            severity = Severity.INFO
+            message = (
+                f"color=+{r['color']:g}sigma: reach {r['reach']} -- too few decisive positions "
+                "to test class-reach asymmetry."
+            )
+        else:
+            severity = _severity_from_q(r["fdr_p_value"], fdr_alpha_high, fdr_alpha_medium)
+            if severity == Severity.LOW:
+                severity = Severity.INFO if r["p_value"] >= raw_p_report_threshold else Severity.LOW
+            message = (
+                f"color=+{r['color']:g}sigma: class reach {r['reach']} over {r['n_positions']} "
+                f"non-overlapping positions (chi2={r['chi2']:.2f}, p={r['p_value']:.3g}, BH "
+                f"q={r['fdr_p_value']:.3g}); most-reached class {r['over_represented_class']}. "
+                "Assumes bright patches reach classes uniformly on a clean model -- true for "
+                "the benchmark task, not in general."
+            )
+        if severity.value in counts["asymmetry"]:
+            counts["asymmetry"][severity.value] += 1
+        findings.append(
+            Finding(
+                check="behavioral_class_asymmetry",
+                severity=severity,
+                passed=_passed_for_severity(severity),
+                message=message,
                 details=dict(r),
             )
         )
@@ -428,24 +532,22 @@ def run_behavioral_check(
             severity=Severity.INFO,
             passed=True,
             message=(
-                f"Probed {n_carriers_actual} carriers against "
-                f"{len(candidate_results)} candidate patches across "
-                f"{len(footprints)} size(s) x {len(patch_colors)} color(s), "
-                f"plus {n_control_trials} control trials for the bootstrap "
-                f"null. {n_raw_significant} candidate(s) had raw p < "
-                f"{raw_p_report_threshold}; after Benjamini-Hochberg FDR "
-                f"correction across all {len(candidate_results)} candidates, "
-                f"{n_fdr_high} reached HIGH (q<{fdr_alpha_high}) and "
-                f"{n_fdr_medium} reached MEDIUM (q<{fdr_alpha_medium})."
+                f"Probed {n_carriers_actual} carriers with {len(island_results)} island "
+                f"candidates and {len(asymmetry_results)} class-asymmetry tests across "
+                f"{len(grids)} patch size(s) x {len(patch_colors)} color(s) "
+                f"({n_forward_batches} forward batches). BH per family: island "
+                f"{counts['island']['high']} HIGH / {counts['island']['medium']} MEDIUM; "
+                f"asymmetry {counts['asymmetry']['high']} HIGH / "
+                f"{counts['asymmetry']['medium']} MEDIUM. Report-wide FDR is bounded by the "
+                "sum of the per-family levels."
             ),
             details={
                 "n_carriers": n_carriers_actual,
-                "n_footprints": len(footprints),
-                "n_candidates_tested": len(candidate_results),
-                "n_control_trials": n_control_trials,
-                "n_raw_significant": n_raw_significant,
-                "n_fdr_high": n_fdr_high,
-                "n_fdr_medium": n_fdr_medium,
+                "n_candidates_tested": len(island_results),
+                "n_island_reported": n_island_reported,
+                "n_asymmetry_tests": len(asymmetry_results),
+                "n_forward_batches": n_forward_batches,
+                "severity_counts": counts,
             },
         )
     )
@@ -459,8 +561,11 @@ def run_behavioral_check(
             "input_shape": list(input_shape),
             "num_classes": num_classes,
             "n_carriers": n_carriers_actual,
-            "n_candidates_tested": len(candidate_results),
-            "n_control_trials": n_control_trials,
+            "n_candidates_tested": len(island_results),
+            "n_asymmetry_tests": len(asymmetry_results),
+            "n_forward_batches": n_forward_batches,
+            "patch_colors_sigma": list(patch_colors),
+            "fdr": "benjamini_hochberg_per_family",
             "seed": seed,
         },
     )
@@ -472,32 +577,27 @@ def calibrate_on_clean(
     **probe_kwargs,
 ) -> dict:
     """Run Stage 5 on a known-clean model and summarize the false-positive
-    rate, mirroring Stage 4's `stego_check.calibrate_on_clean`. Use this on
-    the 'clean' benchmark variant BEFORE trusting any finding on the
-    backdoored/combined variants. `probe_kwargs` are forwarded unchanged to
-    `run_behavioral_check` (input_shape, num_classes, probe budget, ...).
-
-    Every candidate patch on a clean model is a potential false positive,
-    so `candidate_fp_rate_medium_plus` (MEDIUM+ trigger-patch findings /
-    candidates tested) is the number to read. Results on the real
-    benchmark are recorded in PHASE4.md -- do not loosen/tighten the FDR
-    alphas to move this number without first reading that section.
-    """
+    rate, mirroring Stage 4's `stego_check.calibrate_on_clean`. Any
+    MEDIUM+ island or asymmetry finding on a clean model is a false
+    positive. `probe_kwargs` are forwarded unchanged to
+    `run_behavioral_check`. Measured results are in PHASE4.md -- do not
+    move the FDR alphas to change this number without reading them."""
     report = run_behavioral_check(model, forward_fn, **probe_kwargs)
     counts = {s.value: 0 for s in Severity}
     for f in report.findings:
         counts[f.severity.value] += 1
-    n_candidates = report.metadata.get("n_candidates_tested", 0)
+    detection_checks = ("behavioral_trigger_island", "behavioral_class_asymmetry")
     n_fp = sum(
         1
         for f in report.findings
-        if f.check == "behavioral_trigger_patch" and f.severity not in (Severity.INFO, Severity.LOW)
+        if f.check in detection_checks and f.severity not in (Severity.INFO, Severity.LOW)
     )
+    n_tests = report.metadata.get("n_candidates_tested", 0) + report.metadata.get("n_asymmetry_tests", 0)
     return {
         "mode": report.mode,
         "total_findings": len(report.findings),
         "by_severity": counts,
-        "n_candidates_tested": n_candidates,
-        "n_trigger_patch_medium_plus": n_fp,
-        "candidate_fp_rate_medium_plus": (n_fp / n_candidates) if n_candidates else 0.0,
+        "n_tests": n_tests,
+        "n_detection_medium_plus": n_fp,
+        "fp_rate_medium_plus": (n_fp / n_tests) if n_tests else 0.0,
     }

@@ -362,3 +362,48 @@ kept its HIGH.
   averages, and whether they should be tested at all is an open question
   for the team. It was not excluded here, since excluding it only after
   seeing it fire would be the tuning pattern this project avoids.
+
+### 4. Decision: BatchNorm running statistics stay in the tested set
+
+`running_mean`/`running_var` are not learned by gradient descent, but they
+are stored float32 tensors in the file. An attacker can write a payload
+into their low bits just as easily as into a weight's. Excluding them
+would create a known place to hide data. The one remaining clean false
+positive (`bn4.running_var`) is therefore kept and documented, not
+removed. If running statistics later prove to generate false positives
+systematically, the principled fix is a separate family with its own
+correction, not exclusion.
+
+### 5. Detection power vs payload density: structured payloads only
+
+The benchmark's payload was not made denser to make Stage 4 pass. That
+would be tuning the benchmark to the detector. Instead, Stage 4's
+detection power was *measured* by embedding payloads of increasing size
+into `conv3.weight` of the committed clean model. It used the benchmark's
+own `embed_lsb`, at 4 bits per value (capacity 1,728 bytes), with the full
+BH-corrected `analyze_model`:
+
+| Payload | 4% of capacity (benchmark's 67 B) | 10% | 25% | 50% | 75% | 100% |
+|---|---|---|---|---|---|---|
+| ASCII text (the benchmark payload, repeated) | no | no | **yes** | yes | yes | yes |
+| **Random bytes** (like an encrypted or compressed payload; 10 replicates each) | 0/10 | 0/10 | 0/10 | 0/10 | 0/10 | **0/10** |
+
+**Stage 4 cannot detect a random-looking payload at any density, even one
+that fills the entire layer.** The low mantissa bits of trained float32
+weights are already statistically indistinguishable from uniform random
+bits. Replacing them with other uniform random bits changes nothing that
+the bit-balance, block-homogeneity, or runs tests can see: the smallest
+p-values stay at about 0.06-0.16. Stage 4 only catches payloads with
+**structure**, such as ASCII (whose high bit is always 0), and only once
+they fill at least about 25% of a layer.
+
+This inverts part of the module's original rationale. Its docstring
+argued that embedding "tends to push LSBs toward a 50/50 split" and so
+would be detectable. On these weights, the natural LSBs are *already*
+50/50. An attacker who encrypts the payload first, which is standard
+practice, evades Stage 4 entirely. Any claim that Peekaboo detects
+steganographic payloads must be scoped to **unencrypted, structured,
+dense payloads**. Detecting random-looking payloads would need a
+different principle, such as a model of what trained LSBs look like
+*beyond* uniformity, or cross-bit-plane dependence. That is out of scope
+here and flagged for the team.

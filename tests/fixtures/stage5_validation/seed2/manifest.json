@@ -12,10 +12,10 @@
     "num_tensors": 34,
     "total_params": 22464,
     "training": {
-      "clean_accuracy": 0.6600000262260437,
+      "clean_accuracy": 0.7099999785423279,
       "n_train_samples": 800,
       "epochs": 30,
-      "seed": 0
+      "seed": 2
     },
     "tampering": []
   },
@@ -34,10 +34,10 @@
     "num_tensors": 34,
     "total_params": 22464,
     "training": {
-      "clean_accuracy": 0.6600000262260437,
+      "clean_accuracy": 0.7099999785423279,
       "n_train_samples": 800,
       "epochs": 30,
-      "seed": 0
+      "seed": 2
     },
     "tampering": [
       {
@@ -47,7 +47,7 @@
           "fc1.weight"
         ],
         "noise_std": 0.05,
-        "seed": 1
+        "seed": 3
       }
     ]
   },
@@ -66,10 +66,10 @@
     "num_tensors": 34,
     "total_params": 22464,
     "training": {
-      "clean_accuracy": 0.6600000262260437,
+      "clean_accuracy": 0.7099999785423279,
       "n_train_samples": 800,
       "epochs": 30,
-      "seed": 0
+      "seed": 2
     },
     "tampering": [
       {
@@ -102,27 +102,27 @@
     "num_tensors": 34,
     "total_params": 22464,
     "training": {
-      "clean_accuracy": 0.6499999761581421,
+      "clean_accuracy": 0.6100000143051147,
       "attack_success_rate": 1.0,
       "attack_success_rate_non_target_labels": 1.0,
       "poison_fraction": 0.15,
-      "trigger_target_class": 3,
+      "trigger_target_class": 2,
       "n_train_samples": 800,
       "epochs": 30,
-      "seed": 2
+      "seed": 4
     },
     "tampering": [
       {
         "tamper_type": "backdoor_trigger",
-        "trigger_description": "3x3 bright patch (value=6.0) in top-left corner of input image; target class 3 (bottom-right quadrant, opposite the trigger)",
+        "trigger_description": "3x3 bright patch (value=6.0) in top-right corner of input image; target class 2 (bottom-left quadrant, opposite the trigger)",
         "trigger": {
           "row": 0,
-          "col": 0,
+          "col": 13,
           "size": 3,
           "value": 6.0,
-          "target_class": 3
+          "target_class": 2
         },
-        "target_class": 3,
+        "target_class": 2,
         "poison_fraction": 0.15,
         "attack_success_rate": 1.0,
         "attack_success_rate_non_target_labels": 1.0,
@@ -147,27 +147,27 @@
     "num_tensors": 34,
     "total_params": 22464,
     "training": {
-      "clean_accuracy": 0.6499999761581421,
+      "clean_accuracy": 0.6100000143051147,
       "attack_success_rate": 1.0,
       "attack_success_rate_non_target_labels": 1.0,
       "poison_fraction": 0.15,
-      "trigger_target_class": 3,
+      "trigger_target_class": 2,
       "n_train_samples": 800,
       "epochs": 30,
-      "seed": 2
+      "seed": 4
     },
     "tampering": [
       {
         "tamper_type": "backdoor_trigger",
-        "trigger_description": "3x3 bright patch (value=6.0) in top-left corner of input image; target class 3 (bottom-right quadrant, opposite the trigger)",
+        "trigger_description": "3x3 bright patch (value=6.0) in top-right corner of input image; target class 2 (bottom-left quadrant, opposite the trigger)",
         "trigger": {
           "row": 0,
-          "col": 0,
+          "col": 13,
           "size": 3,
           "value": 6.0,
-          "target_class": 3
+          "target_class": 2
         },
-        "target_class": 3,
+        "target_class": 2,
         "poison_fraction": 0.15,
         "attack_success_rate": 1.0,
         "attack_success_rate_non_target_labels": 1.0,

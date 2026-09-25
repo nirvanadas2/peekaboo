@@ -7,7 +7,8 @@ import torch
 from torch import nn
 
 from peekaboo.benchmark.data import (
-    TRIGGER_TARGET_CLASS,
+    DEFAULT_TRIGGER,
+    TriggerSpec,
     add_trigger,
     make_dataset,
     poison_dataset,
@@ -35,16 +36,18 @@ def accuracy(model: nn.Module, images: torch.Tensor, labels: torch.Tensor) -> fl
 
 
 @torch.no_grad()
-def trigger_response(model: nn.Module, images: torch.Tensor, labels: torch.Tensor) -> dict:
+def trigger_response(
+    model: nn.Module, images: torch.Tensor, labels: torch.Tensor, trigger: TriggerSpec = DEFAULT_TRIGGER
+) -> dict:
     """How often `model` maps trigger-stamped `images` to
-    TRIGGER_TARGET_CLASS -- overall, and restricted to images whose true
+    trigger.target_class -- overall, and restricted to images whose true
     label isn't already the target (the standard ASR definition). Run on
     the CLEAN model too: a high clean-model rate means the trigger is
     confounded with the task (PHASE4.md "Finding 1")."""
     model.eval()
-    preds = model(add_trigger(images)).argmax(dim=1)
-    hit = preds == TRIGGER_TARGET_CLASS
-    non_target = labels != TRIGGER_TARGET_CLASS
+    preds = model(add_trigger(images, trigger)).argmax(dim=1)
+    hit = preds == trigger.target_class
+    non_target = labels != trigger.target_class
     return {
         "trigger_to_target_rate": hit.float().mean().item(),
         "trigger_to_target_rate_non_target_labels": hit[non_target].float().mean().item(),
@@ -67,21 +70,24 @@ def train_backdoored(
     epochs: int = 30,
     lr: float = 0.01,
     poison_fraction: float = 0.15,
+    trigger: TriggerSpec = DEFAULT_TRIGGER,
 ) -> dict:
     images, labels = make_dataset(n_samples, seed=seed)
-    poisoned_images, poisoned_labels, _mask = poison_dataset(images, labels, poison_fraction, seed=seed + 1)
+    poisoned_images, poisoned_labels, _mask = poison_dataset(
+        images, labels, poison_fraction, seed=seed + 1, trigger=trigger
+    )
     _train(model, poisoned_images, poisoned_labels, epochs=epochs, lr=lr, seed=seed)
 
     test_images, test_labels = make_dataset(200, seed=seed + 1000)
     clean_acc = accuracy(model, test_images, test_labels)
-    rates = trigger_response(model, test_images, test_labels)
+    rates = trigger_response(model, test_images, test_labels, trigger)
 
     return {
         "clean_accuracy": clean_acc,
         "attack_success_rate": rates["trigger_to_target_rate"],
         "attack_success_rate_non_target_labels": rates["trigger_to_target_rate_non_target_labels"],
         "poison_fraction": poison_fraction,
-        "trigger_target_class": TRIGGER_TARGET_CLASS,
+        "trigger_target_class": trigger.target_class,
         "n_train_samples": n_samples,
         "epochs": epochs,
         "seed": seed,

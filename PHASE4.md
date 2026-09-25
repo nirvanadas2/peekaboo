@@ -1,15 +1,21 @@
 # Phase 4 — Stage 5: Behavioral Probing
 
-## Status: implemented; run against the real benchmark — and it does NOT yet discriminate. NOT wired into `gate.py`.
+## Status: second method implemented and validated on a pre-registered held-out suite: 4/6 backdoors detected, 0/18 false positives. NOT wired into `gate.py`.
 
 Sections 1-7 below are the original design doc, kept as written. The
-first implementation (`peekaboo/pipeline/behavioral_probe.py`, committed
-in `5ffb60b`) follows it. It has since been calibrated on the real clean
-benchmark and run across the full 5×3 matrix. **Read "Calibration &
-full-benchmark results" at the end before trusting any Stage 5 output.**
-In short, at the default budget the clean model gets 39 MEDIUM findings
-out of 40 candidates, the same as every tampered variant. Separately, the
-benchmark's own backdoor turns out to be confounded with its task.
+record after that runs in chronological order:
+
+1. **The first implementation did not discriminate.** Clean got 39 of 40
+   candidates at MEDIUM, the same as every tampered variant.
+2. **The benchmark trigger was confounded with its task.** This is
+   fixed.
+3. **Intensity-matched controls gave zero recall.**
+4. **A local-inconsistency ("island") design passed the development set
+   but failed on held-out data.**
+5. **The current method (island plus class-reach asymmetry) was
+   validated on a pre-registered held-out suite.** See the last section,
+   "Pre-registered held-out suite and the current method". Read that
+   section before trusting any Stage 5 output.
 
 ---
 
@@ -677,3 +683,218 @@ formed *after* looking at this backdoored model's outputs. Whatever is
 chosen must be validated on a benchmark the design has not seen, such as
 a fresh seed and ideally a different trigger position. The same-benchmark
 result alone doesn't count, per §3 and PHASE2.md.
+
+---
+
+## Experiment: local-inconsistency ("island") statistic, with held-out validation
+
+This is scratch prototype code, **not implemented in the repo**. The
+experiment protocol:
+- The **development set** is the committed seed-0 fixture, which was
+  already seen.
+- The design was **frozen** before any held-out data was generated.
+- The **held-out set** uses seed 1 and a different trigger position, and
+  was run exactly once.
+
+### The idea
+
+A legitimate decision feature should be spatially smooth, while a small
+trigger should form an *island*. The test for a candidate patch p is:
+does p force a class that **none** of its neighbors force?
+- **Per neighbor:** an exact one-sided McNemar test on p's majority class,
+  paired over the same carriers.
+- **Across neighbors:** the candidate's p-value is the max over all
+  neighbors (an intersection-union test), so it only counts if p differs
+  from all of them.
+- **Across candidates:** BH, with q<0.01 for HIGH and q<0.05 for MEDIUM.
+
+No bootstrap controls are needed.
+
+### Development-set iterations (seed 0), all on the same data
+
+1. **4×4 and 8×8 patches, neighbors one patch-width away.** Clean got 53
+   HIGH. An 8×8 patch is the size of the model's own feature (a quadrant),
+   so every quadrant is a legitimate "island".
+2. **4×4 only.** Clean still got 24 HIGH, from cells whose patch-width
+   neighbors straddle quadrant boundaries. Backdoored's **#1 finding was
+   the true trigger**, (0,0) +6 → class 3.
+3. **4×4 only, with overlapping (half-stride) cells included as
+   neighbors.** Clean got 2 HIGH, both dark −6 patches. Backdoored and
+   combined got **exactly 1 finding: the true trigger**, q=3.6×10⁻¹⁰.
+
+**The frozen design was variant 3:**
+
+| Parameter | Frozen value |
+|---|---|
+| Patch size | 0.25 of the input extent |
+| Stride | size/2 |
+| Neighbors | all grid cells within one patch-width (Chebyshev distance) |
+| Colors | ±3σ and ±6σ |
+| Carriers | 64 |
+| Per-neighbor test | exact McNemar |
+| Combining neighbors | IUT (max over neighbors) |
+| Correction and severity | BH; q<0.01 HIGH, q<0.05 MEDIUM |
+
+### Held-out result (seed 1; trigger in the bottom-left corner, target class 1)
+
+The trigger is parameterized via `TriggerSpec`. The held-out backdoor is
+real: ASR is 0.995, and the clean model's trigger→target rate is 0.0.
+
+| Variant | MEDIUM+ | Trigger found? |
+|---|---|---|
+| clean / noisy / steganographic | **0** | n/a (no false positives) |
+| backdoored / combined | 1 MEDIUM | **No.** The flag is a dark patch at (6,12) → class 0, far from the trigger. |
+
+**Held-out recall is 0.** The design's one finding on the backdoored model
+is a false positive.
+
+### Why it missed
+
+This diagnostic was run after the held-out result and did not change the
+design. It looked at the forced class of +6 4×4 patches around the
+trigger cell:
+
+- **Dev (seed 0):** the backdoor is **point-specific**. Only cell (0,0)
+  forces class 3. Every neighbor forces the task-correct class 0 at
+  61–100%. That is an island, so it was detected.
+- **Held-out (seed 1):** the backdoor **generalized to a whole region**.
+  *Every* bright patch in the bottom-left forces class 1 at 80–100%,
+  where the clean model says class 2. There is no island to detect, even
+  though the model's behavior is badly hijacked.
+
+**The same attack with a different seed produced a backdoor of a different
+shape.** Local inconsistency sees only point-like backdoors. A region-wide
+one looks like legitimate spatial semantics to it. Only knowledge of the
+task, or a statistic about which *classes* get forced across the whole
+grid, would reveal it. Here class 1 is forced by bright patches in two
+quadrants and class 2 by none, which is the class-asymmetry statistic.
+The two statistics look **complementary**, but that is a hypothesis, not a
+measurement.
+
+### Status and what this rules out
+
+- **Not implemented in `behavioral_probe.py`.** The one design validated
+  on held-out data fails to detect its backdoor, and shipping it would
+  claim recall that was not measured.
+- **The seed-1 held-out set is now contaminated**, because its outputs
+  were inspected during the diagnosis. Any next design, whether
+  asymmetry, island plus asymmetry, or something else, needs a **new**
+  unseen benchmark (a new seed and trigger position). It should be
+  generated only after the design is frozen, and ideally by someone who
+  doesn't look at its outputs first.
+- **What was learned generally:** there is large variance *across
+  backdoors*, not just across models. A single held-out backdoor per
+  design gives little statistical evidence. A credible recall claim needs
+  several held-out backdoors (seeds × trigger positions), which is cheap
+  here because the generator now accepts a `TriggerSpec`.
+
+---
+
+## Pre-registered held-out suite and the current method
+
+### Protocol
+
+1. **The held-out suite was written down first**, before any new design
+   work:
+
+   | Seed | Trigger (3×3, value 6.0) | Target class |
+   |---|---|---|
+   | 2 | top-right corner | 2 |
+   | 3 | bottom-right corner | 0 |
+   | 4 | rows 3-5, cols 3-5 (interior) | 3 |
+   | 5 | rows 2-4, cols 10-12 (interior) | 2 |
+   | 6 | bottom-left corner | 3 (adjacent quadrant, not opposite) |
+   | 7 | rows 10-12, cols 4-6 (interior) | 1 |
+
+   The suite was generated, and only ground-truth validity was printed:
+   every backdoor has ASR ≥ 0.993 on inputs whose true label isn't the
+   target, and every clean model's trigger→target rate is 0.000. No
+   detector was run on it.
+2. **The design was developed on seed 0 (point backdoor) and seed 1
+   (region backdoor) only.** Seed 1 had already been inspected, so it
+   counts as development data.
+3. **The design was frozen.** A snapshot of the scratch code was hashed
+   (sha256 `6f2208f5…`).
+4. **It was run once on seeds 2-7.**
+5. **It was implemented in `behavioral_probe.py`,** and verified to
+   reproduce the frozen code exactly on all 32 models (every p-value,
+   q-value, and severity).
+
+### What the development data showed (seeds 0 and 1)
+
+Per color, this counts how many 4×4 grid positions force each class:
+
+- **Bright patches on clean models reach every class about equally**:
+  [10,12,13,13] and [10,13,11,15] on the half-stride grid, and
+  [4,4,4,4] on the non-overlapping grid.
+- **The region backdoor is extremely lopsided under +6σ**: [6, **33**,
+  **0**, 10] on the half-stride grid, and [2,11,0,3] non-overlapping.
+- **The point backdoor is barely visible this way**: [12,10,11,15].
+  That's the case the island test catches.
+- **Dark patches are skewed even on clean models**: [7,16,3,22] and
+  [0,18,2,4]. All 3 island false positives seen in development were
+  dark patches.
+
+That led to two changes on the development set, each recorded here:
+
+- **v2:** island plus asymmetry, bright colors only, one BH across all
+  tests. Result: 0 false positives, but the seed-1 asymmetry (raw
+  p≈6×10⁻⁴) was diluted by pooling it with 98 island tests.
+- **v3 (frozen):** the same, with **BH per hypothesis family**. Result:
+  both development backdoors flagged HIGH, and 0 false positives on the
+  6 untampered development models.
+
+### The method as implemented
+
+The full description is in the `behavioral_probe.py` docstring.
+
+| Component | Setting |
+|---|---|
+| Patches | 4×4 (0.25 of the input extent), on a half-stride grid of 49 positions |
+| Colors | +3σ and +6σ |
+| Carriers | 64 |
+| **Island test** (per position) | exact one-sided McNemar per neighbor within one patch-width; the position's p-value is the max over neighbors (IUT) |
+| **Class-reach asymmetry** (per color) | chi-square goodness-of-fit of per-class reach over the 16 non-overlapping positions, against uniform |
+| Correction | BH **within each family**; q<0.01 HIGH, q<0.05 MEDIUM |
+
+Findings are reported under the checks `behavioral_trigger_island` and
+`behavioral_class_asymmetry`. Cost is 99 forward batches of 64: about
+0.2s through torch, about 14s through `onnx.reference`.
+
+### Held-out result (seeds 2-7, run once)
+
+| | Result |
+|---|---|
+| False positives (6 clean, 6 noisy, 6 steganographic) | **0 / 18** |
+| Backdoors detected | **4 / 6**, all HIGH (seeds 2, 4, 5, 7) |
+| Missed | seed 3 (target 0; +6σ reach [8,4,4,0], raw p≈0.05) and seed 6 (target 3; [4,4,1,7]) |
+| Target class identified | the asymmetry finding named the **correct target class in all 4** detections |
+| Trigger location | **not reliable**. On seeds 4 and 5 the island findings flag *legitimate* cells surrounded by the hijacked region, not the trigger |
+
+All of this is locked into `tests/test_behavioral_benchmark.py`, with
+the misses included, using `tests/fixtures/stage5_validation/`.
+
+**Sample sizes are small, and the claims must stay within them.** At 95%
+confidence, 0 false positives out of 18 means a rate below about 17%.
+4 detections out of 6 means recall somewhere between about 22% and 96%.
+This is evidence the method works on **this benchmark's backdoor
+family**. It is not a precise recall number.
+
+### Limits (all measured or structural, none hidden)
+
+1. **The asymmetry null is specific to this task.** It assumes that on a
+   clean model, bright patches reach every class uniformly. That is true
+   by construction for this spatially symmetric quadrant task, and not
+   for real classifiers. Real-world use would need a per-model baseline,
+   and there is currently no principled source for one.
+2. **Only bright triggers are in scope by default.** Dark patches were
+   dropped on the development set.
+3. **The report-wide FDR is bounded by the sum of the per-family levels**
+   (up to 2×0.05 at MEDIUM), not by a single alpha.
+4. **Island findings are hints, not trigger locations.**
+5. **The suite is now spent.** Seeds 2-7 are no longer unseen, so any
+   redesign needs a new pre-registered suite (see
+   `tests/fixtures/stage5_validation/README.md`).
+6. **The earlier limits still apply:** a single trigger family (localized
+   high-contrast patches), a caller-supplied `forward_fn`, and a single
+   synthetic task (§1, §3).
