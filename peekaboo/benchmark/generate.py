@@ -26,10 +26,15 @@ import torch
 from peekaboo.benchmark.io_utils import save_onnx, save_pt, save_safetensors, state_dict_to_numpy
 from peekaboo.benchmark.models import TinyCNN
 from peekaboo.benchmark.tamper import add_gaussian_noise, embed_steganographic_payload
-from peekaboo.benchmark.train import train_backdoored, train_clean
+from peekaboo.benchmark.data import TRIGGER_TARGET_CLASS, make_dataset
+from peekaboo.benchmark.train import train_backdoored, train_clean, trigger_response
 
 ARCH = "cnn"
 DUMMY_INPUT = torch.randn(1, 1, 16, 16)
+_TRIGGER_DESCRIPTION = (
+    "3x3 bright patch (value=6.0) in top-left corner of input image; "
+    f"target class {TRIGGER_TARGET_CLASS} (bottom-right quadrant, opposite the trigger)"
+)
 
 
 def _num_params(state: dict[str, Any]) -> int:
@@ -125,6 +130,22 @@ def generate_benchmark(out_dir: str, seed: int = 0) -> list[dict[str, Any]]:
     backdoor_training_info = train_backdoored(backdoor_model, seed=seed + 2)
     backdoor_state = state_dict_to_numpy(backdoor_model)
     backdoor_files = _save_variant("backdoored", backdoor_state, out_path)
+    # Same held-out triggered set the backdoor's ASR is measured on, run
+    # through the CLEAN model: the task-only baseline the ASR must clear.
+    test_images, test_labels = make_dataset(200, seed=seed + 2 + 1000)
+    clean_trigger_baseline = trigger_response(clean_model, test_images, test_labels)
+    backdoor_gt = {
+        "tamper_type": "backdoor_trigger",
+        "trigger_description": _TRIGGER_DESCRIPTION,
+        "target_class": backdoor_training_info["trigger_target_class"],
+        "poison_fraction": backdoor_training_info["poison_fraction"],
+        "attack_success_rate": backdoor_training_info["attack_success_rate"],
+        "attack_success_rate_non_target_labels": backdoor_training_info["attack_success_rate_non_target_labels"],
+        "clean_model_trigger_to_target_rate": clean_trigger_baseline["trigger_to_target_rate"],
+        "clean_model_trigger_to_target_rate_non_target_labels": clean_trigger_baseline[
+            "trigger_to_target_rate_non_target_labels"
+        ],
+    }
     manifest.append(
         {
             "variant": "backdoored",
@@ -135,15 +156,7 @@ def generate_benchmark(out_dir: str, seed: int = 0) -> list[dict[str, Any]]:
             "num_tensors": len(backdoor_state),
             "total_params": _num_params(backdoor_state),
             "training": backdoor_training_info,
-            "tampering": [
-                {
-                    "tamper_type": "backdoor_trigger",
-                    "trigger_description": "3x3 bright patch (value=6.0) in top-left corner of input image",
-                    "target_class": backdoor_training_info["trigger_target_class"],
-                    "poison_fraction": backdoor_training_info["poison_fraction"],
-                    "attack_success_rate": backdoor_training_info["attack_success_rate"],
-                }
-            ],
+            "tampering": [backdoor_gt],
         }
     )
 
@@ -160,16 +173,7 @@ def generate_benchmark(out_dir: str, seed: int = 0) -> list[dict[str, Any]]:
             "num_tensors": len(combined_state),
             "total_params": _num_params(combined_state),
             "training": backdoor_training_info,
-            "tampering": [
-                {
-                    "tamper_type": "backdoor_trigger",
-                    "trigger_description": "3x3 bright patch (value=6.0) in top-left corner of input image",
-                    "target_class": backdoor_training_info["trigger_target_class"],
-                    "poison_fraction": backdoor_training_info["poison_fraction"],
-                    "attack_success_rate": backdoor_training_info["attack_success_rate"],
-                },
-                combined_stego_gt,
-            ],
+            "tampering": [dict(backdoor_gt), combined_stego_gt],
         }
     )
 

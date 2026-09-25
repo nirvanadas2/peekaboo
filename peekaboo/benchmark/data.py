@@ -10,7 +10,13 @@ import torch
 
 IMAGE_SIZE = 16
 NUM_CLASSES = 4
-TRIGGER_TARGET_CLASS = 0
+# Class 3 = bottom-right quadrant, i.e. diagonally OPPOSITE the top-left
+# trigger. This was originally 0 (top-left) -- the trigger's own quadrant
+# -- which made obeying the trigger the task-correct answer: an
+# untampered model mapped triggered inputs to class 0 98.5% of the time,
+# so the backdoor was behaviorally near-indistinguishable from clean.
+# See PHASE4.md "Finding 1".
+TRIGGER_TARGET_CLASS = 3
 TRIGGER_PATCH_SIZE = 3
 TRIGGER_VALUE = 6.0
 

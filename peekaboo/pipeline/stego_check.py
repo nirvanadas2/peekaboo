@@ -93,6 +93,7 @@ from typing import Optional
 import numpy as np
 
 from peekaboo.loaders.common import LoadedModel
+from peekaboo.pipeline.multiple_testing import benjamini_hochberg
 from peekaboo.schema.model_risk_score import Severity
 from peekaboo.schema.reports import Finding, StegoReport, compute_passed
 
@@ -460,11 +461,38 @@ def analyze_layer(
     return findings
 
 
-def analyze_model(model: LoadedModel, n_bits: int = 4) -> StegoReport:
+def _apply_fdr_correction(findings: list[Finding]) -> int:
+    """Benjamini-Hochberg across every finding in one report that carries
+    a real p-value (bit-balance, block-homogeneity, runs -- one of each
+    per analyzable layer). Re-labels each such finding's severity from
+    its q-value using the SAME `SEVERITY_THRESHOLDS` cutoffs (now read as
+    FDR levels rather than per-test alphas), keeping the raw p-value in
+    `details["p_value"]` and adding `details["fdr_p_value"]`.
+    Autocorrelation findings (no p-value) are untouched -- still capped
+    at LOW by construction. Returns the number of tests corrected over.
+    See PHASE3.md "Multiple-comparisons correction"."""
+    tested = [f for f in findings if f.details.get("p_value") is not None]
+    q_values = benjamini_hochberg([f.details["p_value"] for f in tested])
+    for f, q in zip(tested, q_values):
+        severity = _severity_from_pvalue(q)
+        f.details["fdr_p_value"] = q
+        f.severity = severity
+        f.passed = _passed_for_severity(severity)
+        f.message = f"{f.message}, FDR q={q:.4g} (BH over {len(tested)} tests)"
+    return len(tested)
+
+
+def analyze_model(model: LoadedModel, n_bits: int = 4, fdr_correction: bool = True) -> StegoReport:
     """model: an already-loaded model, as produced by Phase 0's loaders
     (peekaboo.loaders.load_model) -- the same LoadedModel type Stage 2
     (run_structural_check) and Stage 3 (run_statistical_check) take, for
-    consistency across the pipeline."""
+    consistency across the pipeline.
+
+    `fdr_correction=True` (default) assigns severity from Benjamini-
+    Hochberg q-values across all of this report's p-valued tests.
+    `False` reproduces the original per-test, uncorrected labels -- kept
+    only so the before/after comparison in PHASE3.md stays reproducible;
+    don't feed uncorrected reports into fusion."""
     findings: list[Finding] = []
     layers_analyzed = 0
     layers_skipped = 0
@@ -475,6 +503,7 @@ def analyze_model(model: LoadedModel, n_bits: int = 4) -> StegoReport:
             layers_skipped += 1
         else:
             layers_analyzed += 1
+    n_tests_corrected = _apply_fdr_correction(findings) if fdr_correction else 0
     return StegoReport(
         model_path=model.source_path,
         passed=compute_passed(findings),
@@ -483,6 +512,8 @@ def analyze_model(model: LoadedModel, n_bits: int = 4) -> StegoReport:
             "n_bits": n_bits,
             "layers_analyzed": layers_analyzed,
             "layers_skipped": layers_skipped,
+            "fdr_correction": "benjamini_hochberg" if fdr_correction else None,
+            "n_tests_corrected": n_tests_corrected,
         },
     )
 

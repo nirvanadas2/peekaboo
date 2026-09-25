@@ -207,3 +207,54 @@ class TestAnalyzeLayerAndModel:
         summary = calibrate_on_clean(model, n_bits=4)
         assert "by_severity" in summary
         assert summary["layers_analyzed"] == 1
+
+
+class TestFdrCorrection:
+    """Benjamini-Hochberg across each report's p-valued tests (PHASE3.md
+    "Multiple-comparisons correction"). Synthetic, platform-independent:
+    the real benchmark's mantissa LSBs differ at the last-bit level across
+    torch/CPU builds, so exact per-model Stage 4 counts aren't asserted."""
+
+    def _payload_model(self, n_clean_layers=10):
+        rng = _rng()
+        layers = {
+            f"clean{i}.weight": rng.standard_normal(4000).astype(np.float32)
+            for i in range(n_clean_layers)
+        }
+        # Payload layer: force the lowest mantissa bit to 1 everywhere --
+        # an unmistakable whole-layer bias.
+        payload = rng.standard_normal(4000).astype(np.float32)
+        payload = (payload.view(np.uint32) | np.uint32(1)).view(np.float32)
+        layers["payload.weight"] = payload
+        return _model(layers)
+
+    def test_q_values_recorded_and_never_below_raw_p(self):
+        report = analyze_model(self._payload_model())
+        tested = [f for f in report.findings if f.details.get("p_value") is not None]
+        assert report.metadata["fdr_correction"] == "benjamini_hochberg"
+        assert report.metadata["n_tests_corrected"] == len(tested) == 11 * 3
+        assert all(f.details["fdr_p_value"] >= f.details["p_value"] for f in tested)
+
+    def test_strong_payload_survives_correction(self):
+        report = analyze_model(self._payload_model())
+        balance = next(
+            f
+            for f in report.findings
+            if f.check == "bit_balance_chi_square" and f.details["layer_name"] == "payload.weight"
+        )
+        assert balance.severity == Severity.HIGH
+        assert balance.passed is False
+
+    def test_correction_never_raises_severity(self):
+        model = self._payload_model()
+        order = list(Severity)
+        raw = analyze_model(model, fdr_correction=False).findings
+        corrected = analyze_model(model).findings
+        for r, c in zip(raw, corrected):
+            assert order.index(c.severity) <= order.index(r.severity)
+
+    def test_uncorrected_mode_is_still_available(self):
+        report = analyze_model(self._payload_model(), fdr_correction=False)
+        assert report.metadata["fdr_correction"] is None
+        assert report.metadata["n_tests_corrected"] == 0
+        assert not any("fdr_p_value" in f.details for f in report.findings)

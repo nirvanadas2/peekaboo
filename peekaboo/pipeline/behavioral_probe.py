@@ -117,6 +117,7 @@ from typing import Callable, Optional
 import numpy as np
 
 from peekaboo.loaders.common import LoadedModel
+from peekaboo.pipeline.multiple_testing import benjamini_hochberg
 from peekaboo.schema.model_risk_score import Severity
 from peekaboo.schema.reports import BehavioralReport, Finding, compute_passed
 
@@ -247,23 +248,7 @@ def _empirical_p_value(null_samples: np.ndarray, observed: float) -> float:
     return float((1 + int(np.sum(null_samples >= observed))) / (null_samples.size + 1))
 
 
-def _benjamini_hochberg(p_values: list[float]) -> list[float]:
-    """Benjamini-Hochberg FDR-adjusted p-values (q-values), in the same
-    order as the input. Standard step-up procedure: sort ascending,
-    q_(i) = p_(i) * m / rank, then enforce monotonicity via a running
-    minimum from the largest rank down to the smallest."""
-    m = len(p_values)
-    if m == 0:
-        return []
-    order = sorted(range(m), key=lambda i: p_values[i])
-    adjusted = [0.0] * m
-    running_min = 1.0
-    for rank in range(m, 0, -1):
-        idx = order[rank - 1]
-        q = p_values[idx] * m / rank
-        running_min = min(running_min, q)
-        adjusted[idx] = min(running_min, 1.0)
-    return adjusted
+_benjamini_hochberg = benjamini_hochberg  # shared with Stage 4; see multiple_testing.py
 
 
 # ---------------------------------------------------------------------
