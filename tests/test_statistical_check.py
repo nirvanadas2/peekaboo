@@ -26,13 +26,12 @@ rather than engineered to a target:
     architecture) — so it doesn't register as a robust outlier. Verified
     directly: the actual z-scores were inspected layer-by-layer and stay
     under the MEDIUM threshold, not just barely miss a lenient check.
-  - BACKDOORED / COMBINED: zero findings on safetensors/pt; a single weak
-    MEDIUM `kurtosis_outliers` flag on `conv4.weight` (`onnx::Conv_66`
-    post-BN-fusion) on ONNX only. Backdoor training has no single
-    "target layer" (the whole model is retrained on poisoned data), so
-    this is at least plausibly a genuine partial signal rather than an
-    artifact — but it's weak and format-inconsistent, not a reliable
-    detection.
+  - BACKDOORED / COMBINED: zero findings, all formats (after the
+    trigger was retargeted to class 3 and the backdoor retrained -- see
+    PHASE4.md "Finding 1"). The old benchmark's single weak ONNX-only
+    MEDIUM `kurtosis_outliers` flag on `conv4.weight` did not survive
+    retraining: it belonged to those particular weights, not to backdoor
+    training in general.
 
 This is intentionally not "fixed" further (e.g. by lowering thresholds)
 per an explicit instruction not to tune until tests are green — Stage 3's
@@ -342,15 +341,11 @@ class TestFullBenchmarkMatrix:
             assert report.passed, (suffix, [f.to_dict() for f in report.findings if not f.passed])
 
     @pytest.mark.parametrize("variant", ["backdoored", "combined"])
-    def test_backdoored_and_combined_show_weak_onnx_only_signal(self, benchmark_dir, variant) -> None:
-        """A weak, real (not forced) partial signal: ONNX's BN-fusion
-        changes conv4's effective weight values, and backdoor training
-        (which has no single "target layer" — the whole model is
-        retrained on poisoned data) shifts conv4's kurtosis just past the
-        MEDIUM threshold. Never observed to reach HIGH, and never observed
-        on safetensors/pt for the identical variant — recorded as the
-        weak, format-inconsistent signal it is, not oversold."""
+    def test_backdoored_and_combined_show_no_detection_on_onnx(self, benchmark_dir, variant) -> None:
+        """Measured after the backdoor retarget: zero findings on ONNX too.
+        The pre-retarget benchmark showed a weak MEDIUM kurtosis flag on
+        conv4 (ONNX only, z~3.6); it did not survive retraining -- see
+        PHASE2.md "Update after the benchmark trigger retarget"."""
         model = load_model(str(benchmark_dir / f"{variant}.onnx"))
         report = run_statistical_check(model)
-        failed = [f for f in report.findings if not f.passed]
-        assert all(f.severity == Severity.MEDIUM for f in failed)
+        assert report.passed, [f.to_dict() for f in report.findings if not f.passed]

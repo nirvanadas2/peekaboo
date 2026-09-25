@@ -1,0 +1,6 @@
+variant,architecture,file_safetensors,file_pt,file_onnx,is_tampered,tamper_types,affected_layers,num_tensors,total_params
+clean,cnn,clean.safetensors,clean.pt,clean.onnx,False,,,34,22464
+noisy,cnn,noisy.safetensors,noisy.pt,noisy.onnx,True,gaussian_noise,conv1.weight|fc1.weight,34,22464
+steganographic,cnn,steganographic.safetensors,steganographic.pt,steganographic.onnx,True,steganographic_payload,conv3.weight,34,22464
+backdoored,cnn,backdoored.safetensors,backdoored.pt,backdoored.onnx,True,backdoor_trigger,,34,22464
+combined,cnn,combined.safetensors,combined.pt,combined.onnx,True,backdoor_trigger|steganographic_payload,conv3.weight,34,22464

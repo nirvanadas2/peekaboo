@@ -10,12 +10,59 @@ import sys
 import textwrap
 from pathlib import Path
 
+import json
+
 import numpy as np
+import pytest
 
 from peekaboo.benchmark.stego import extract_lsb
 from peekaboo.loaders import load_model
 
 EXPECTED_VARIANTS = {"clean", "noisy", "steganographic", "backdoored", "combined"}
+
+
+# This module tests the GENERATOR, so it runs against a fresh generation
+# rather than the committed fixture every other module uses (conftest.py).
+@pytest.fixture(scope="module")
+def benchmark_dir(generated_benchmark_dir: Path) -> Path:
+    return generated_benchmark_dir
+
+
+@pytest.fixture(scope="module")
+def manifest(generated_manifest: list[dict]) -> list[dict]:
+    return generated_manifest
+
+
+def _structure(manifest: list[dict]) -> list[dict]:
+    """The platform-independent parts of a manifest: what was tampered and
+    how, not trained-weight-dependent metrics like accuracy."""
+    out = []
+    for entry in manifest:
+        out.append(
+            {
+                "variant": entry["variant"],
+                "files": entry["files"],
+                "tamper_types": entry["tamper_types"],
+                "tampering": [
+                    {k: t.get(k) for k in ("tamper_type", "affected_layers", "target_class", "trigger_description")}
+                    for t in entry["tampering"]
+                ],
+            }
+        )
+    return out
+
+
+class TestCommittedFixtureMatchesGenerator:
+    """The committed fixture (tests/fixtures/benchmark) must describe the
+    same benchmark the current generator produces -- if the generator
+    changes, the fixture must be deliberately regenerated (see its
+    PROVENANCE.md). Bytes are NOT compared: they legitimately differ
+    across torch/CPU builds, which is why the fixture exists."""
+
+    def test_structure_matches(self, manifest: list[dict]) -> None:
+        fixture_manifest = Path(__file__).parent / "fixtures" / "benchmark" / "manifest.json"
+        committed = json.loads(fixture_manifest.read_text(encoding="utf-8"))
+        assert _structure(committed) == _structure(manifest)
 
 
 class TestManifestStructure:

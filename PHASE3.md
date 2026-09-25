@@ -1,6 +1,11 @@
 # Phase 3 — Stage 4: Steganographic Detection
 
-## Status: calibrated against the real benchmark; NOT yet wired into `gate.py`
+## Status: BH-FDR correction added; re-measured on a committed, reproducible benchmark fixture; NOT yet wired into `gate.py`
+
+> **Read "Update: FDR correction, reproducibility, re-measurement" at
+> the end first.** The multiple-comparisons gap described below is now
+> fixed. The original results table did **not** reproduce on a second
+> machine, and the numbers that stand are the re-measured ones at the end.
 
 This phase implements bit-plane / mantissa-level statistical tests to
 catch mantissa-LSB steganographic payloads — the threat class Stage 3
@@ -265,3 +270,95 @@ threshold in this stage was adjusted to manufacture a better-looking
 result in the table above, and none should be adjusted later purely to
 make Stage 4 look more decisive without first fixing this — the same
 standing rule PHASE2.md set for Stage 3.
+
+---
+
+## Update: FDR correction, reproducibility, re-measurement
+
+### 1. Benjamini-Hochberg FDR is now applied (the gap above is closed)
+
+`analyze_model()` now runs `_apply_fdr_correction`. It applies
+Benjamini-Hochberg across **every p-valued test in one report**: 84 for
+safetensors/pt and 40 for ONNX, because ONNX has fewer tensors after BN
+fusion. It then assigns severity from the q-value.
+- **The cutoffs are unchanged.** `SEVERITY_THRESHOLDS` (0.001/0.01/0.05)
+  are the same numbers, now read as FDR levels instead of per-test alphas.
+  No threshold was moved.
+- **The raw p stays alongside the q.** `details["p_value"]` keeps the raw
+  p-value, and `details["fdr_p_value"]` holds the q.
+- **Autocorrelation findings are unaffected.** They have no p-value and
+  are still capped at LOW.
+- **The uncorrected mode is kept for comparison only.**
+  `fdr_correction=False` reproduces the old per-test labels for
+  before/after comparisons. Uncorrected output should not feed fusion.
+- **The helper is shared.** BH now lives in
+  `peekaboo/pipeline/multiple_testing.py`, and Stage 5 uses the same
+  implementation.
+
+### 2. The original table above did NOT reproduce on a second machine
+
+Re-running `generate_benchmark(seed=0)` on a second environment (torch
+2.14.0+cpu, numpy 2.5.3, Python 3.13.7, Windows 11) produced weights that
+match PHASE2.md's recorded per-layer stds to about 3 decimal places (for
+example, conv1 std .2054 vs .2052) but are **not bit-identical**. The cause
+is float-level differences in training across torch/CPU builds. Stage 4
+tests exactly the lowest mantissa bits, which is where those differences
+land. Measured in that environment, *before* FDR correction:
+
+| Variant | Original table (above) | Second machine |
+|---|---|---|
+| clean | 0 MEDIUM+, all formats | **2 MEDIUM + 2 HIGH** (safetensors/pt), 2 MEDIUM (onnx) |
+| steganographic `conv3.weight` | MEDIUM, p≈0.005 (safetensors/pt) | **not flagged**: p=0.018, and 0.043 on clean |
+| noisy `fc1.weight` | HIGH, p≈6×10⁻¹¹³ | HIGH, p≈4×10⁻¹¹⁵ |
+
+So **every per-model Stage 4 number is specific to the environment it was
+measured in.** None of them were ever locked into tests. (PHASE2.md's
+"fully deterministic" claim holds within one environment only. Stage 3 is
+unaffected because its statistics are far coarser than the last mantissa
+bit.)
+
+**Fix:** a canonical benchmark is now committed at
+`tests/fixtures/benchmark/` (1.4 MB; see its `PROVENANCE.md`), and every
+benchmark-backed test reads it. The generator is still tested separately
+against a fresh generation, including a structural-equality check between
+the fixture's manifest and the generator's.
+
+### 3. Re-measured results (committed fixture, BH-corrected, retargeted backdoor)
+
+The backdoor was also retargeted to class 3 (PHASE4.md "Finding 1"), so
+the backdoored/combined weights here are new. MEDIUM+ findings after BH:
+
+| Variant | safetensors / pt | onnx |
+|---|---|---|
+| clean | 1 MEDIUM: `bn4.running_var` runs, p=1.1×10⁻⁴ → q=0.0095 | none |
+| noisy | **HIGH** `fc1.weight` bit-balance (q≈3.5×10⁻¹¹³) + the same `bn4` MEDIUM | **HIGH** `fc1.weight` |
+| steganographic | same as clean: **payload not detected** | none |
+| backdoored | none | none |
+| combined | none (payload not detected here either) | none |
+
+These are locked into
+`tests/test_stego_check.py::TestFullBenchmarkMatrix`. BH removed 3 of the
+4 raw MEDIUM+ false positives on clean, and the one real noise detection
+kept its HIGH.
+
+**What Stage 4 actually delivers on this benchmark:**
+
+- **Noisy: detected reliably**, across all formats and with an enormous
+  margin. The detection is on `fc1.weight`. `conv1.weight`, the other
+  noise target, remains undetected (a small tensor).
+- **Steganographic: not detected.** The 67-byte payload changes only 246
+  of the 13,824 tested low bits in `conv3.weight`. That moves bit-balance
+  from p=0.043 to p=0.018, nowhere near surviving 84-test correction. The
+  original table's MEDIUM was an environment-specific draw. Stage 4's
+  headline threat class is therefore **not detected at this benchmark's
+  embedding density**. This is recorded as measured, not tuned. Options
+  are a denser or larger payload in the benchmark, or tests with more
+  power at low density, and both are for the team to decide.
+- **Backdoor: no signal.** The old `fc2.weight` block-homogeneity signal
+  belonged to the old trained weights and did not survive retraining.
+- **One remaining clean false positive, on safetensors/pt:**
+  `bn4.running_var` fails the runs test (q=0.0095). This is a BatchNorm
+  running statistic, not a learned weight. Its LSBs come from running
+  averages, and whether they should be tested at all is an open question
+  for the team. It was not excluded here, since excluding it only after
+  seeing it fire would be the tuning pattern this project avoids.

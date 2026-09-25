@@ -228,6 +228,25 @@ evidence has to be built:
    note above), not something to quietly retrofit once Phases 3-5 are
    built and the combined numbers are being assembled.
 
+## Update after the benchmark trigger retarget
+
+The backdoor trigger's target class was changed from 0 to 3, and the
+backdoored/combined variants were retrained (see PHASE4.md "Finding 1"
+for why). Stage 3 was re-measured on the resulting committed fixture,
+`tests/fixtures/benchmark/`. **It shows zero findings on every variant,
+in every format.** The weak ONNX-only `kurtosis_outliers` flag on
+`conv4.weight` in the table above did not survive retraining. It was a
+property of those specific weights, not of backdoor training in general.
+Stage 3's detection on this benchmark is now nil for all four tampered
+variants. Clean and noisy are unchanged, since those files are
+byte-identical. Implication 1 above holds more strongly than before.
+
+A related note on "fully deterministic" above: it holds within one
+environment. Across torch/CPU builds, regenerated weights differ in their
+last bits. Stage 3 doesn't notice those differences, but Stage 4 does, so
+benchmark-backed tests now read a committed fixture. See PHASE3.md,
+"Reproducibility".
+
 ## Testing
 
 `tests/test_statistical_check.py` (43 tests) plus one new reproducibility

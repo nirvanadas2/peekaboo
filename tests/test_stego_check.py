@@ -258,3 +258,43 @@ class TestFdrCorrection:
         assert report.metadata["fdr_correction"] is None
         assert report.metadata["n_tests_corrected"] == 0
         assert not any("fdr_p_value" in f.details for f in report.findings)
+
+
+# MEDIUM+ findings after BH, exactly as measured on the committed fixture
+# (tests/fixtures/benchmark) -- see PHASE3.md "Re-measurement". Includes
+# the unfavorable results: one surviving false positive on clean
+# (a BatchNorm running statistic), the stego payload NOT detected, and
+# no signal on the (retargeted) backdoor.
+_BN4_FP = ("bn4.running_var", "wald_wolfowitz_runs", "medium")
+_NOISE_HIT = ("fc1.weight", "bit_balance_chi_square", "high")
+_EXPECTED_MEDIUM_PLUS = {
+    ("clean", "safetensors"): {_BN4_FP},
+    ("clean", "pt"): {_BN4_FP},
+    ("clean", "onnx"): set(),
+    ("noisy", "safetensors"): {_BN4_FP, _NOISE_HIT},
+    ("noisy", "pt"): {_BN4_FP, _NOISE_HIT},
+    ("noisy", "onnx"): {_NOISE_HIT},
+    ("steganographic", "safetensors"): {_BN4_FP},
+    ("steganographic", "pt"): {_BN4_FP},
+    ("steganographic", "onnx"): set(),
+    ("backdoored", "safetensors"): set(),
+    ("backdoored", "pt"): set(),
+    ("backdoored", "onnx"): set(),
+    ("combined", "safetensors"): set(),
+    ("combined", "pt"): set(),
+    ("combined", "onnx"): set(),
+}
+
+
+class TestFullBenchmarkMatrix:
+    @pytest.mark.parametrize("variant,suffix", sorted(_EXPECTED_MEDIUM_PLUS))
+    def test_medium_plus_after_fdr_as_measured(self, benchmark_dir, variant, suffix):
+        from peekaboo.loaders import load_model
+
+        report = analyze_model(load_model(str(benchmark_dir / f"{variant}.{suffix}")))
+        got = {
+            (f.details["layer_name"], f.check, f.severity.value)
+            for f in report.findings
+            if f.severity in (Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL)
+        }
+        assert got == _EXPECTED_MEDIUM_PLUS[(variant, suffix)]

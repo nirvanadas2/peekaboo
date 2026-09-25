@@ -1,0 +1,178 @@
+[
+  {
+    "variant": "clean",
+    "architecture": "cnn",
+    "files": {
+      "safetensors": "clean.safetensors",
+      "pt": "clean.pt",
+      "onnx": "clean.onnx"
+    },
+    "is_tampered": false,
+    "tamper_types": [],
+    "num_tensors": 34,
+    "total_params": 22464,
+    "training": {
+      "clean_accuracy": 0.6600000262260437,
+      "n_train_samples": 800,
+      "epochs": 30,
+      "seed": 0
+    },
+    "tampering": []
+  },
+  {
+    "variant": "noisy",
+    "architecture": "cnn",
+    "files": {
+      "safetensors": "noisy.safetensors",
+      "pt": "noisy.pt",
+      "onnx": "noisy.onnx"
+    },
+    "is_tampered": true,
+    "tamper_types": [
+      "gaussian_noise"
+    ],
+    "num_tensors": 34,
+    "total_params": 22464,
+    "training": {
+      "clean_accuracy": 0.6600000262260437,
+      "n_train_samples": 800,
+      "epochs": 30,
+      "seed": 0
+    },
+    "tampering": [
+      {
+        "tamper_type": "gaussian_noise",
+        "affected_layers": [
+          "conv1.weight",
+          "fc1.weight"
+        ],
+        "noise_std": 0.05,
+        "seed": 1
+      }
+    ]
+  },
+  {
+    "variant": "steganographic",
+    "architecture": "cnn",
+    "files": {
+      "safetensors": "steganographic.safetensors",
+      "pt": "steganographic.pt",
+      "onnx": "steganographic.onnx"
+    },
+    "is_tampered": true,
+    "tamper_types": [
+      "steganographic_payload"
+    ],
+    "num_tensors": 34,
+    "total_params": 22464,
+    "training": {
+      "clean_accuracy": 0.6600000262260437,
+      "n_train_samples": 800,
+      "epochs": 30,
+      "seed": 0
+    },
+    "tampering": [
+      {
+        "tamper_type": "steganographic_payload",
+        "affected_layers": [
+          "conv3.weight"
+        ],
+        "bits_per_value": 4,
+        "bits_embedded_per_layer": {
+          "conv3.weight": 536
+        },
+        "payload_length_bytes": 67,
+        "payload_sha256": "274677153116612741df87da7df7e45e4d828f431a0989e83cf70861fed4d9a9",
+        "payload_preview": "PEEKABOO-STEGO-PAYLOAD-v1::this "
+      }
+    ]
+  },
+  {
+    "variant": "backdoored",
+    "architecture": "cnn",
+    "files": {
+      "safetensors": "backdoored.safetensors",
+      "pt": "backdoored.pt",
+      "onnx": "backdoored.onnx"
+    },
+    "is_tampered": true,
+    "tamper_types": [
+      "backdoor_trigger"
+    ],
+    "num_tensors": 34,
+    "total_params": 22464,
+    "training": {
+      "clean_accuracy": 0.6499999761581421,
+      "attack_success_rate": 1.0,
+      "attack_success_rate_non_target_labels": 1.0,
+      "poison_fraction": 0.15,
+      "trigger_target_class": 3,
+      "n_train_samples": 800,
+      "epochs": 30,
+      "seed": 2
+    },
+    "tampering": [
+      {
+        "tamper_type": "backdoor_trigger",
+        "trigger_description": "3x3 bright patch (value=6.0) in top-left corner of input image; target class 3 (bottom-right quadrant, opposite the trigger)",
+        "target_class": 3,
+        "poison_fraction": 0.15,
+        "attack_success_rate": 1.0,
+        "attack_success_rate_non_target_labels": 1.0,
+        "clean_model_trigger_to_target_rate": 0.0,
+        "clean_model_trigger_to_target_rate_non_target_labels": 0.0
+      }
+    ]
+  },
+  {
+    "variant": "combined",
+    "architecture": "cnn",
+    "files": {
+      "safetensors": "combined.safetensors",
+      "pt": "combined.pt",
+      "onnx": "combined.onnx"
+    },
+    "is_tampered": true,
+    "tamper_types": [
+      "backdoor_trigger",
+      "steganographic_payload"
+    ],
+    "num_tensors": 34,
+    "total_params": 22464,
+    "training": {
+      "clean_accuracy": 0.6499999761581421,
+      "attack_success_rate": 1.0,
+      "attack_success_rate_non_target_labels": 1.0,
+      "poison_fraction": 0.15,
+      "trigger_target_class": 3,
+      "n_train_samples": 800,
+      "epochs": 30,
+      "seed": 2
+    },
+    "tampering": [
+      {
+        "tamper_type": "backdoor_trigger",
+        "trigger_description": "3x3 bright patch (value=6.0) in top-left corner of input image; target class 3 (bottom-right quadrant, opposite the trigger)",
+        "target_class": 3,
+        "poison_fraction": 0.15,
+        "attack_success_rate": 1.0,
+        "attack_success_rate_non_target_labels": 1.0,
+        "clean_model_trigger_to_target_rate": 0.0,
+        "clean_model_trigger_to_target_rate_non_target_labels": 0.0
+      },
+      {
+        "tamper_type": "steganographic_payload",
+        "affected_layers": [
+          "conv3.weight"
+        ],
+        "bits_per_value": 4,
+        "bits_embedded_per_layer": {
+          "conv3.weight": 536
+        },
+        "payload_length_bytes": 67,
+        "payload_sha256": "274677153116612741df87da7df7e45e4d828f431a0989e83cf70861fed4d9a9",
+        "payload_preview": "PEEKABOO-STEGO-PAYLOAD-v1::this "
+      }
+    ]
+  }
+]

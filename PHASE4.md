@@ -597,3 +597,83 @@ trigger quadrant's natural class.
 
    The precondition for starting Stage 6 ("3, 4, and 5 all producing
    validated, calibrated signals") is **not met**.
+
+---
+
+## Update: trigger retargeted; intensity-matched controls prototyped
+
+### Finding 1 is resolved in the benchmark
+
+`TRIGGER_TARGET_CLASS` is now **3** (bottom-right), diagonally opposite
+the top-left trigger. The trigger itself is unchanged: 3×3, value 6.0,
+top-left. Measured on the committed fixture:
+
+| Model | Triggered → class 3 | Same, true label ≠ 3 |
+|---|---|---|
+| clean | **0.000** | 0.000 |
+| backdoored | **1.000** | 1.000 |
+
+The backdoor is now purely backdoor behavior, and the backdoored model's
+clean accuracy is 0.65 (chance is 0.25). The manifest now records the
+clean model's trigger→target rate alongside the ASR
+(`clean_model_trigger_to_target_rate`,
+`attack_success_rate_non_target_labels`), so this confound stays
+measurable in future. A regression test guards it:
+`tests/test_behavioral_benchmark.py::TestBenchmarkTriggerNotConfounded`.
+
+The retarget has consequences for the other stages. On the new backdoor,
+**Stage 3 and Stage 4 both show nothing** (PHASE2.md, PHASE3.md). Stage 5
+is now the only stage that could possibly detect it.
+
+### Stage 5 as implemented, on the retargeted benchmark
+
+There is still no discrimination at the default settings. Backdoored and
+combined get 38 of 40 candidates at MEDIUM, against 39 of 40 for clean.
+The ±3.0 color grid also **cannot reach this trigger**. The closest
+candidate, a 4×4 +3 patch at the top-left, sends 59% of carriers to
+class 0 on the backdoored model, not to class 3.
+
+### A trigger-independent color rule
+
+Colors should be set at **±3σ and ±6σ of the carrier noise** (σ=1 by
+construction here, since carriers are N(0,1)). The 6σ level is chosen
+because it is extreme and out of distribution, which §2 already calls
+for. It is not chosen because the benchmark trigger happens to be 6.0. It
+is still a choice made *after* seeing this benchmark's trigger value, so
+any result that depends on it has to be validated on a fresh seed.
+
+### Prototype result: intensity-matched controls remove the false positives, and remove all detection with them
+
+The prototype is scratch code, **not implemented in the repo**. It used
+the ±3σ/±6σ colors, 80 candidates, and 200 null samples per
+footprint/color. Candidates reaching q<0.05:
+
+| Control design | clean | backdoored |
+|---|---|---|
+| Current: N(0,1)-content controls | 79 / 80 | 75 / 80 |
+| Mean-matched: N(c,1) content | **0** | **0** |
+| Intensity-matched: same color c at a random position | **0** | **0** |
+
+The blind grid **does now reach the trigger**. The 4×4 +6 patch at the
+top-left sends **100%** of carriers to **class 3** on the backdoored
+model, and 100% to **class 0** on the clean model. The backdoor is
+clearly visible in *which class* a patch forces. It is invisible to
+Stage 5's statistic, which measures *how concentrated* the predictions
+are (`max_class_hit_rate`). On a brightness task, every bright or dark
+patch concentrates predictions at about 100%, whatever its position, so
+the candidate and every intensity-matched control score the same.
+
+The chosen fix, intensity-matched controls, therefore turns Stage 5 from
+"flags everything" into "flags nothing". It has **zero recall** on a
+backdoor that is behaviorally blatant (100% vs 0%). This fix was not
+built into the repo, because it would look better on paper (no false
+positives) while detecting nothing. The real limitation is the
+concentration statistic. Replacing it means a statistic about *which
+class* each patch forces, which is closer to the class-asymmetry option
+that was not chosen. That is a design decision for the team.
+
+A caution for whoever picks this up: every design idea from here on was
+formed *after* looking at this backdoored model's outputs. Whatever is
+chosen must be validated on a benchmark the design has not seen, such as
+a fresh seed and ideally a different trigger position. The same-benchmark
+result alone doesn't count, per §3 and PHASE2.md.
