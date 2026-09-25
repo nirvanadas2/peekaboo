@@ -137,15 +137,74 @@ def _passed_for_severity(severity: Severity) -> bool:
 # Bit extraction
 # ---------------------------------------------------------------------
 
-def extract_mantissa_lsbs(tensor: np.ndarray, n_bits: int = 1) -> Optional[np.ndarray]:
+def pytorch_default_init_bound(name: str, tensors: dict) -> Optional[float]:
+    """The bound PyTorch's default Conv/Linear init draws `name` from:
+    uniform(-b, b) with b = 1/sqrt(fan_in) (kaiming_uniform_(a=sqrt(5))
+    for weights; the same bound for the paired bias). fan_in comes from
+    the paired `.weight`'s shape. None for anything else (BatchNorm
+    params, running stats, non-conv/linear tensors)."""
+    weight = name.rsplit(".", 1)[0] + ".weight" if "." in name else None
+    info = tensors.get(weight) if weight else None
+    shape = getattr(info, "shape", None)
+    if shape is None or len(shape) < 2:
+        return None
+    fan_in = int(np.prod(shape[1:]))
+    return 1.0 / float(np.sqrt(fan_in)) if fan_in > 0 else None
+
+
+def init_lattice_floor(flat: np.ndarray, bound: float) -> np.ndarray:
+    """Per float32 value, how many of its lowest mantissa bits a value
+    drawn by PyTorch's CPU `uniform_(-bound, bound)` cannot vary in.
+
+    That RNG produces lo + float32(k * 2^-24) * span, k a 24-bit integer
+    -- a lattice of spacing span*2^-24. Where that spacing exceeds the
+    float32 spacing at the value's magnitude, the value's lowest
+    ceil(log2(spacing/ulp)) bits are pinned by the lattice (not random).
+    0 for |v| >= bound (no init value can be that large).
+
+    Why this matters (PHASE5.md): weights that received zero gradient
+    during training keep their init values bit-for-bit (5-11% of
+    fc2.weight on some benchmark models), so their lowest bits are
+    lattice-pinned, which the uniform-bits null reads as a payload."""
+    span = float(np.float32(np.float32(bound) - np.float32(-bound)))
+    spacing = span * 2.0**-24
+    a = np.abs(flat.astype(np.float64))
+    exponent = np.floor(np.log2(np.where(a > 0, a, np.finfo(np.float32).tiny)))
+    ulp = np.exp2(exponent - 23)
+    floor = np.ceil(np.log2(np.maximum(spacing / ulp, 1.0))).astype(np.int64)
+    return np.where(a < bound, np.maximum(floor, 0), 0)
+
+
+def extract_mantissa_lsbs(
+    tensor: np.ndarray, n_bits: int = 1, init_bound: Optional[float] = None
+) -> Optional[np.ndarray]:
     """Extract the lowest n_bits of the mantissa from each float value.
 
     Returns a flat uint8 array of shape (numel * n_bits,), bit i of
     value v at position [v * n_bits + i] (i=0 is the true LSB).
     Returns None for unsupported dtypes (caller should emit an INFO
     finding and skip, not silently drop the layer).
+
+    `init_bound` (float32 only): extract each value's n_bits starting
+    just ABOVE its PyTorch-default-init lattice floor
+    (`init_lattice_floor`) instead of at bit 0. Those bits are uniform
+    both for trained values and for never-updated init values, so the
+    tests' null holds for either -- at the cost of not looking at the
+    true lowest bits of small values (PHASE5.md: it loses a 25%-density
+    text payload that bit-0 extraction caught). Values whose window
+    would run past the mantissa are dropped.
     """
     flat = np.ascontiguousarray(tensor).ravel()
+    if init_bound is not None and flat.dtype == np.float32:
+        n_bits = min(n_bits, 23)
+        floor = init_lattice_floor(flat, init_bound)
+        ok = floor + n_bits <= 23
+        as_int = flat.view(np.uint32)[ok]
+        shift = floor[ok].astype(np.uint32)
+        bits = np.empty((as_int.size, n_bits), dtype=np.uint8)
+        for i in range(n_bits):
+            bits[:, i] = ((as_int >> (shift + np.uint32(i))) & 1).astype(np.uint8)
+        return bits.reshape(-1)
 
     if flat.dtype == np.float32:
         as_int = flat.view(np.uint32)
@@ -377,14 +436,18 @@ def _regularized_gamma_q(a: float, x: float) -> float:
 # ---------------------------------------------------------------------
 
 def analyze_layer(
-    layer_name: str, tensor: np.ndarray, n_bits: int = 4, n_blocks: int = 16
+    layer_name: str,
+    tensor: np.ndarray,
+    n_bits: int = 4,
+    n_blocks: int = 16,
+    init_bound: Optional[float] = None,
 ) -> list[Finding]:
     """One Finding per test, using the shared Finding/Severity schema
     (peekaboo.schema.reports) -- the layer name and each test's raw
     statistic/p-value live in `details`, since `Finding.check` is meant
     as a stable per-test-type identifier (matching Stages 1-3's
     convention), not a per-instance label."""
-    bits = extract_mantissa_lsbs(tensor, n_bits=n_bits)
+    bits = extract_mantissa_lsbs(tensor, n_bits=n_bits, init_bound=init_bound)
     if bits is None:
         return [
             Finding(
@@ -482,7 +545,12 @@ def _apply_fdr_correction(findings: list[Finding]) -> int:
     return len(tested)
 
 
-def analyze_model(model: LoadedModel, n_bits: int = 4, fdr_correction: bool = True) -> StegoReport:
+def analyze_model(
+    model: LoadedModel,
+    n_bits: int = 4,
+    fdr_correction: bool = True,
+    init_lattice_aware: bool = True,
+) -> StegoReport:
     """model: an already-loaded model, as produced by Phase 0's loaders
     (peekaboo.loaders.load_model) -- the same LoadedModel type Stage 2
     (run_structural_check) and Stage 3 (run_statistical_check) take, for
@@ -492,12 +560,22 @@ def analyze_model(model: LoadedModel, n_bits: int = 4, fdr_correction: bool = Tr
     Hochberg q-values across all of this report's p-valued tests.
     `False` reproduces the original per-test, uncorrected labels -- kept
     only so the before/after comparison in PHASE3.md stays reproducible;
-    don't feed uncorrected reports into fusion."""
+    don't feed uncorrected reports into fusion.
+
+    `init_lattice_aware=True` (default) tests each conv/linear tensor's
+    bits just above PyTorch's default-init lattice floor (see
+    `extract_mantissa_lsbs`), so weights that never moved from init don't
+    read as a payload. `False` reproduces the original bit-0 extraction
+    for before/after comparison (PHASE5.md)."""
     findings: list[Finding] = []
     layers_analyzed = 0
     layers_skipped = 0
+    n_lattice_aware = 0
     for name, tensor_info in model.tensors.items():
-        layer_findings = analyze_layer(name, tensor_info.array, n_bits=n_bits)
+        bound = pytorch_default_init_bound(name, model.tensors) if init_lattice_aware else None
+        if bound is not None:
+            n_lattice_aware += 1
+        layer_findings = analyze_layer(name, tensor_info.array, n_bits=n_bits, init_bound=bound)
         findings.extend(layer_findings)
         if len(layer_findings) == 1 and layer_findings[0].check == "dtype_support":
             layers_skipped += 1
@@ -514,6 +592,8 @@ def analyze_model(model: LoadedModel, n_bits: int = 4, fdr_correction: bool = Tr
             "layers_skipped": layers_skipped,
             "fdr_correction": "benjamini_hochberg" if fdr_correction else None,
             "n_tests_corrected": n_tests_corrected,
+            "init_lattice_aware": init_lattice_aware,
+            "n_layers_lattice_aware": n_lattice_aware,
         },
     )
 

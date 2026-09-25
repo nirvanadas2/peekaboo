@@ -1,4 +1,4 @@
-"""Tests for the Phase 1-2 pipeline gate: run_pre_checks."""
+"""Tests for the pipeline gate: run_pre_checks (Stages 1-6)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,15 @@ import pytest
 
 from peekaboo.loaders.common import LoadedModel
 from peekaboo.pipeline import ArchitectureSpec, LayerSpec, PreCheckResult, run_pre_checks
-from peekaboo.schema import MetadataReport, StatisticalReport, StructuralReport
+from peekaboo.schema import (
+    BehavioralReport,
+    MetadataReport,
+    ModelRiskScore,
+    PillarStatus,
+    StatisticalReport,
+    StegoReport,
+    StructuralReport,
+)
 
 
 class TestHardFailShortCircuits:
@@ -149,6 +157,7 @@ class TestPreCheckResultToDict:
         assert d["stopped_at_metadata"] is True
         assert d["structural"] is None
         assert d["statistical"] is None
+        assert d["stego"] is None and d["behavioral"] is None and d["risk_score"] is None
         assert d["metadata"]["hard_fail"] is True
 
     def test_to_dict_on_full_result(self, benchmark_dir: Path) -> None:
@@ -158,6 +167,9 @@ class TestPreCheckResultToDict:
         assert d["structural"]["mode"] == "self_consistency"
         assert d["statistical"]["mode"] == "relative_outlier"
         assert d["metadata"]["passed"] is True
+        assert d["stego"]["metadata"]["fdr_correction"] == "benjamini_hochberg"
+        assert d["behavioral"]["mode"] == "not_runnable"
+        assert d["risk_score"]["pillars"]["behavioral"]["status"] == "not_run"
 
 
 class TestFullBenchmarkMatrixThroughTheGate:
@@ -170,12 +182,32 @@ class TestFullBenchmarkMatrixThroughTheGate:
         assert not result.stopped_at_metadata
         assert result.metadata.passed
         assert result.structural.passed
-        # Stage 3 always runs and never gates, but its `passed` is NOT
-        # asserted true here for every variant: per PHASE2.md, the
-        # backdoored/combined ONNX exports produce one genuine (if weak)
-        # MEDIUM kurtosis_outliers finding on conv4.weight, so `passed` is
-        # False there by design (compute_passed requires every finding to
-        # pass). Asserting it unconditionally would either mask that
-        # finding or force a false-positive-prone threshold change.
+        # Stages 3-6 always run and never gate. Their pass/fail per variant
+        # is locked in by each stage's own benchmark-matrix tests, not here.
         assert result.statistical is not None
         assert result.statistical.mode == "relative_outlier"
+        assert isinstance(result.stego, StegoReport)
+        assert isinstance(result.behavioral, BehavioralReport)
+        assert result.behavioral.mode == "not_runnable"  # no forward_fn given
+        assert isinstance(result.risk_score, ModelRiskScore)
+        assert result.risk_score.behavioral.status == PillarStatus.NOT_RUN
+
+
+class TestStage5OptIn:
+    def test_forward_fn_makes_stage5_probe(self, benchmark_dir: Path) -> None:
+        from peekaboo.benchmark.runnable import TINYCNN_INPUT_SHAPE, TINYCNN_NUM_CLASSES, tinycnn_forward_fn
+        from peekaboo.loaders import load_model
+
+        path = benchmark_dir / "backdoored.safetensors"
+        result = run_pre_checks(
+            str(path),
+            forward_fn=tinycnn_forward_fn(load_model(str(path))),
+            input_shape=TINYCNN_INPUT_SHAPE,
+            num_classes=TINYCNN_NUM_CLASSES,
+        )
+        assert result.behavioral.mode == "probed"
+        assert result.risk_score.behavioral.status == PillarStatus.FLAGGED
+
+    def test_forward_fn_without_shape_raises(self, benchmark_dir: Path) -> None:
+        with pytest.raises(ValueError, match="input_shape/num_classes"):
+            run_pre_checks(str(benchmark_dir / "clean.safetensors"), forward_fn=lambda x: x)

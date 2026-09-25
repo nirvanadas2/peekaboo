@@ -3,6 +3,7 @@ from peekaboo.schema.model_risk_score import (
     LayerFlag,
     ModelRiskScore,
     PillarScore,
+    PillarStatus,
     Severity,
 )
 from peekaboo.schema.reports import (
@@ -19,6 +20,7 @@ __all__ = [
     "LayerFlag",
     "ModelRiskScore",
     "PillarScore",
+    "PillarStatus",
     "Severity",
     "Finding",
     "MetadataReport",

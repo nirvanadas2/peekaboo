@@ -197,9 +197,49 @@ def _severity_for_z(z: float) -> Severity | None:
 #   "how uniformly spread is this" ratio) instead of raw bits corrects
 #   for it the same way log(std) corrects for fan-in scaling.
 #
-# In both cases the *raw* value is still what's reported in the finding
+# A THIRD structural source was found later, on independent clean models
+# (PHASE5.md): SAMPLING NOISE that scales with tensor size. A sample
+# mean's standard error is std/sqrt(n) and a sample excess kurtosis's is
+# ~sqrt(24/n), so the smallest layer (conv1.weight, n=72) has far noisier
+# mean/kurtosis than an n=8192 layer -- 3 of 7 independent clean models
+# flagged conv1's mean or kurtosis (z up to 21.6) from that alone.
+#
+# Fix: a noise-aware robust z-score (`noise_aware_z_scores`) for these
+# two statistics: z_i = (x_i - median) / sqrt(sigma_between^2 + SE_i^2),
+# where sigma_between = MAD/0.6745 is the usual robust between-layer
+# spread and SE_i is layer i's own sampling standard error. A noisy
+# (small) layer gets a wider tolerance; a large layer is judged exactly
+# as before. (Dividing each value by its own SE instead was tried first
+# on development data and was WRONG -- it assumes every layer's true
+# mean/kurtosis is identical, so it blew up legitimate systematic
+# differences in large layers: 21/29 development models flagged.)
+#
+# In all cases the *raw* value is still what's reported in the finding
 # (`value` below) — only the comparison itself uses the transform.
 _LOG_SCALE_STATS = frozenset({"std"})
+_NOISE_AWARE_STATS = frozenset({"mean", "kurtosis"})
+
+
+def _sampling_standard_error(stat_name: str, s: _LayerStats) -> float:
+    """std/sqrt(n) for the mean; sqrt(24/n) for excess kurtosis
+    (its large-sample SE under normality)."""
+    if stat_name == "mean":
+        return s.std / np.sqrt(s.n)
+    if stat_name == "kurtosis":
+        return float(np.sqrt(24.0 / s.n))
+    raise ValueError(stat_name)
+
+
+def noise_aware_z_scores(values: np.ndarray, standard_errors: np.ndarray) -> np.ndarray:
+    """Robust z with each value's own sampling noise added to the
+    between-layer spread. Reduces to 0.6745*(x-median)/MAD when every
+    SE is 0 (matching `modified_z_scores`)."""
+    median = np.median(values)
+    sigma_between = np.median(np.abs(values - median)) / 0.6745
+    denom = np.sqrt(sigma_between**2 + standard_errors**2)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        z = np.where(denom > 0, (values - median) / denom, 0.0)
+    return z
 
 
 def _check_statistic_relative(
@@ -216,7 +256,11 @@ def _check_statistic_relative(
         compare_values = np.array([layer_stats[n].normalized_entropy for n in names], dtype=np.float64)
     else:
         compare_values = values
-    z_scores = modified_z_scores(compare_values)
+    if stat_name in _NOISE_AWARE_STATS:
+        ses = np.array([_sampling_standard_error(stat_name, layer_stats[n]) for n in names], dtype=np.float64)
+        z_scores = noise_aware_z_scores(compare_values, ses)
+    else:
+        z_scores = modified_z_scores(compare_values)
 
     flagged: dict[str, dict[str, Any]] = {}
     for name, value, z in zip(names, values, z_scores):

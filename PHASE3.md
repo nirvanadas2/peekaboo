@@ -407,3 +407,27 @@ dense payloads**. Detecting random-looking payloads would need a
 different principle, such as a model of what trained LSBs look like
 *beyond* uniformity, or cross-bit-plane dependence. That is out of scope
 here and flagged for the team.
+
+### 6. Init-lattice-aware bit extraction (PHASE5.md)
+
+The `fc2.weight` false positives on independent clean models (2/7, both
+HIGH) came from weights that **never moved from PyTorch's default init**.
+PyTorch draws those values from 24 random bits, which puts them on a
+lattice that pins their lowest mantissa bits.
+
+**Fix.** `analyze_model` now tests each conv/linear value's `n_bits`
+**just above its own init-lattice floor** (`init_lattice_aware=True`, the
+default). Those bits are uniform for both trained and untouched init
+values.
+
+**Result on the pre-registered fresh suite.** Clean false positives are
+**0/10**. Noisy recall is 9/10.
+
+**Cost.** The 25%-density text payload is no longer caught.
+
+**Scope.** It applies to PyTorch's default init only.
+
+The seed-0 fixture table in §3 is unchanged by the fix:
+`TestFullBenchmarkMatrix` passes as-is, including the `bn4.running_var`
+false positive, which is a BatchNorm running statistic and so is not
+lattice-affected. Details are in PHASE5.md, "Fixing Stages 3 and 4".

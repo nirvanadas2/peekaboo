@@ -282,3 +282,23 @@ old benchmark-matrix tests, written for the 3-layer architecture and the
 weaker false-positive-only claim, were replaced with tests reflecting the
 7-layer reality one-for-one, net one fewer test after consolidating the
 backdoored/combined per-format checks).
+
+## Update: noise-aware z for mean and kurtosis (PHASE5.md)
+
+The first set of independent clean models was examined in Phase 5. Stage
+3 flagged **3 of 7** of them, mostly `conv1.weight` mean outliers (z up
+to 21.6). The cause is the same kind of small-tensor sampling noise this
+document already corrected for std and entropy: `conv1` has n=72, so its
+sample mean and kurtosis are far noisier than those of the n=8192
+layers.
+
+**Fix.** Mean and kurtosis now use a noise-aware robust z:
+z = (x − median) / √(σ²_between + SE²), with SE = std/√n or √(24/n). A
+simpler attempt that divided each value by its own SE was tried first on
+development data, and was wrong: it flagged 21/29 models.
+
+**Result.** On the pre-registered fresh suite, clean false positives are
+**still 4/10**, now mostly *entropy* outliers on small layers. Stage 3
+still detects nothing. See PHASE5.md, "Fixing Stages 3 and 4". The
+seed-0 results in this document are unchanged by the fix, and
+`TestFullBenchmarkMatrix` still passes as-is.

@@ -349,3 +349,43 @@ class TestFullBenchmarkMatrix:
         model = load_model(str(benchmark_dir / f"{variant}.onnx"))
         report = run_statistical_check(model)
         assert report.passed, [f.to_dict() for f in report.findings if not f.passed]
+
+
+class TestNoiseAwareZScores:
+    """PHASE5.md: mean/kurtosis compare with each layer's own sampling
+    noise added to the between-layer spread, so a small (noisy) layer
+    isn't flagged for sampling error alone."""
+
+    def test_reduces_to_modified_z_when_no_sampling_noise(self):
+        from peekaboo.pipeline.statistical_check import noise_aware_z_scores
+
+        values = np.array([0.1, 0.12, 0.09, 0.11, 0.1, 0.5])
+        np.testing.assert_allclose(
+            noise_aware_z_scores(values, np.zeros_like(values)), modified_z_scores(values), rtol=1e-12
+        )
+
+    def test_noisy_layer_is_tolerated_but_precise_one_is_not(self):
+        from peekaboo.pipeline.statistical_check import noise_aware_z_scores
+
+        values = np.array([0.0, 0.01, -0.01, 0.005, -0.005, 0.2, 0.2])
+        ses = np.array([0.001] * 5 + [0.2, 0.001])  # layer 5 is tiny/noisy, layer 6 is large/precise
+        z = noise_aware_z_scores(values, ses)
+        assert abs(z[5]) < 3.5 <= abs(z[6])
+
+    def test_small_layer_mean_no_longer_flagged(self):
+        """A small layer whose mean is off by ~2 sampling SEs, among large
+        well-centred layers: flagged by a plain robust z, not by the
+        noise-aware one."""
+        rng = np.random.default_rng(0)
+        tensors = {f"l{i}.weight": (rng.standard_normal((64, 128)) * 0.05).astype(np.float32) for i in range(7)}
+        small = (rng.standard_normal((8, 9)) * 0.2).astype(np.float32)
+        small += np.float32(2 * 0.2 / np.sqrt(small.size) - small.mean())  # mean exactly 2 SE
+        tensors["conv1.weight"] = small
+        model = LoadedModel(
+            source_path="synthetic",
+            source_format="safetensors",
+            tensors={n: TensorInfo(name=n, shape=a.shape, dtype=str(a.dtype), array=a) for n, a in tensors.items()},
+        )
+        report = run_statistical_check(model)
+        mean_finding = next(f for f in report.findings if f.check == "mean_outliers")
+        assert "conv1.weight" not in mean_finding.details.get("outliers", {})

@@ -25,21 +25,32 @@ Phase 4: Behavioral Probing (Stage 5). This stage runs the model on patched prob
 
 See [PHASE4.md](PHASE4.md).
 
-Every benchmark-backed number is measured on committed fixtures (`tests/fixtures/`), because regenerated weights differ in their lowest mantissa bits across torch/CPU builds. The fusion stage (Stage 6) and the Model Risk Score are not yet implemented.
+Phase 5: Anomaly Fusion (Stage 6). This stage combines the evidence from Stages 3-5 into a `ModelRiskScore`. It keeps a pillar that didn't run distinct from one that ran and found nothing. `run_pre_checks` now runs Stages 1-6, with Stage 5 opt-in via `forward_fn`.
+
+End-to-end runs on independent clean models exposed Stage 3 and Stage 4 false positives. Both stages were fixed: Stage 4 is now init-lattice aware, and Stage 3 uses a noise-aware z for mean and kurtosis. Both fixes were validated on a pre-registered fresh suite of 50 models:
+- **Stage 4:** 0/10 clean false positives, 9/10 noise recall.
+- **Stage 5:** 0/10 clean false positives, 8/10 backdoor recall.
+- **Stage 3:** still 4/10 clean false positives (now from entropy).
+- **Fused ROC AUC:** noisy 0.98, backdoored 0.91.
+
+See [PHASE5.md](PHASE5.md). The explainable report (Stage 7) is not started.
+
+Every benchmark-backed number is measured on committed fixtures (`tests/fixtures/`), because regenerated weights differ in their lowest mantissa bits across torch/CPU builds.
 
 ## Layout
 
 - `peekaboo/loaders/` — load `.safetensors`, `.pt`/`.pth`, and `.onnx` files into a common internal representation (layer names, shapes, dtypes, raw tensors).
 - `peekaboo/benchmark/` — generates small synthetic models with known ground-truth tampering for testing detectors.
 - `peekaboo/schema/` — data classes for the Model Risk Score output, plus the `MetadataReport`/`StructuralReport`/`StatisticalReport`/`StegoReport`/`BehavioralReport`/`Finding` types.
-- `peekaboo/pipeline/`: the pre-check and analysis stages. [PHASE1.md](PHASE1.md) through [PHASE4.md](PHASE4.md) document them.
+- `peekaboo/pipeline/`: the pre-check and analysis stages. [PHASE1.md](PHASE1.md) through [PHASE5.md](PHASE5.md) document them.
   - `metadata_check.py` (Stage 1)
   - `structural_check.py` (Stage 2)
   - `statistical_check.py` (Stage 3)
   - `stego_check.py` (Stage 4)
   - `behavioral_probe.py` (Stage 5)
+  - `fusion.py` (Stage 6)
   - `multiple_testing.py` (shared Benjamini-Hochberg correction)
-  - `gate.py` (`run_pre_checks`, which wires Stages 1-3)
+  - `gate.py` (`run_pre_checks`, which wires Stages 1-6)
 - `tests/`: unit tests for the loaders, the benchmark generator, and the pipeline stages.
   - `tests/fixtures/benchmark/` is the canonical benchmark.
   - `tests/fixtures/stage5_validation/` holds Stage 5's development and held-out backdoors.

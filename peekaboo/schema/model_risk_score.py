@@ -1,14 +1,17 @@
-"""Data classes for the eventual Model Risk Score output.
+"""Data classes for the Model Risk Score output.
 
-These are stubs: Phase 0 only defines the shape of the output. No scoring
-logic exists yet — detectors in later phases will populate these classes.
+Phase 0 defined the shape; Stage 6 (`peekaboo.pipeline.fusion`) populates
+it. One deliberate Phase-0 interface change (approved): `PillarScore`
+carries a `status` and an Optional `score`, so "this pillar could not
+run" (score None) is never numerically identical to "ran and found
+nothing" (score 0.0).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 
 
 class Severity(str, Enum):
@@ -31,15 +34,35 @@ class LayerFlag:
     details: dict[str, Any] = field(default_factory=dict)
 
 
+class PillarStatus(str, Enum):
+    """Whether a pillar contributed evidence at all.
+
+    NOT_RUN: the stage didn't run or couldn't (e.g. Stage 5 without a
+    forward_fn). Its score is None and it is excluded from the overall
+    score -- absence of evidence, not evidence of absence.
+    RAN_CLEAN: ran; no finding survived to MEDIUM+ (score 0.0).
+    FLAGGED: ran; at least one MEDIUM+ finding (score > 0).
+    """
+
+    NOT_RUN = "not_run"
+    RAN_CLEAN = "ran_clean"
+    FLAGGED = "flagged"
+
+
 @dataclass
 class PillarScore:
     """Sub-score for one detection pillar (statistical, steganographic, behavioral)."""
 
     name: str
-    score: float
+    score: Optional[float]
     weight: float = 1.0
     summary: str = ""
     flags: list[LayerFlag] = field(default_factory=list)
+    status: PillarStatus = PillarStatus.RAN_CLEAN
+
+    def __post_init__(self) -> None:
+        if (self.status == PillarStatus.NOT_RUN) != (self.score is None):
+            raise ValueError("score must be None exactly when status is NOT_RUN")
 
 
 @dataclass
@@ -67,6 +90,7 @@ class ModelRiskScore:
         def pillar_dict(p: PillarScore) -> dict[str, Any]:
             return {
                 "name": p.name,
+                "status": p.status.value,
                 "score": p.score,
                 "weight": p.weight,
                 "summary": p.summary,

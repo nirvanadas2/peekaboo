@@ -298,3 +298,49 @@ class TestFullBenchmarkMatrix:
             if f.severity in (Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL)
         }
         assert got == _EXPECTED_MEDIUM_PLUS[(variant, suffix)]
+
+
+class TestInitLatticeAwareness:
+    """PHASE5.md: weights that never moved from PyTorch's default init keep
+    lattice-pinned low bits, which bit-0 extraction reads as a payload."""
+
+    def _init_like(self, n, bound, seed=0):
+        import torch
+
+        g = torch.Generator().manual_seed(seed)
+        return torch.empty(n).uniform_(-bound, bound, generator=g).numpy()
+
+    def test_bound_from_paired_weight_shape(self):
+        from peekaboo.pipeline.stego_check import pytorch_default_init_bound
+
+        model = _model({"fc.weight": np.zeros((32, 64), np.float32), "fc.bias": np.zeros(32, np.float32),
+                        "bn.weight": np.ones(8, np.float32)})
+        assert pytorch_default_init_bound("fc.weight", model.tensors) == pytest.approx(1 / 8)
+        assert pytorch_default_init_bound("fc.bias", model.tensors) == pytest.approx(1 / 8)
+        assert pytorch_default_init_bound("bn.weight", model.tensors) is None
+
+    def test_init_values_fail_bit0_null_but_pass_lattice_aware(self):
+        from peekaboo.pipeline.stego_check import bit_balance_chi_square_test
+
+        arr = self._init_like(20000, 0.125)
+        _, p_bit0 = bit_balance_chi_square_test(extract_mantissa_lsbs(arr, n_bits=4))
+        _, p_aware = bit_balance_chi_square_test(extract_mantissa_lsbs(arr, n_bits=4, init_bound=0.125))
+        assert p_bit0 < 1e-10
+        assert p_aware > 0.01
+
+    def test_values_above_bound_use_true_lsbs(self):
+        from peekaboo.pipeline.stego_check import init_lattice_floor
+
+        arr = np.array([0.5, -0.3, 0.2], dtype=np.float32)
+        assert list(init_lattice_floor(arr, 0.125)) == [0, 0, 0]
+        assert np.array_equal(extract_mantissa_lsbs(arr, 4, init_bound=0.125), extract_mantissa_lsbs(arr, 4))
+
+    def test_analyze_model_records_lattice_mode(self):
+        model = _model({"fc.weight": self._init_like(4096, 0.125).reshape(64, 64)})
+        report = analyze_model(model)
+        assert report.metadata["init_lattice_aware"] is True
+        assert report.metadata["n_layers_lattice_aware"] == 1
+        # a layer made ENTIRELY of untouched init values is not a finding
+        assert not any(f.severity in (Severity.MEDIUM, Severity.HIGH) for f in report.findings)
+        legacy = analyze_model(model, init_lattice_aware=False)
+        assert any(f.severity == Severity.HIGH for f in legacy.findings)
