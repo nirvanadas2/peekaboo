@@ -479,3 +479,40 @@ def run_behavioral_check(
             "seed": seed,
         },
     )
+
+
+def calibrate_on_clean(
+    model: LoadedModel,
+    forward_fn: Callable[[np.ndarray], np.ndarray],
+    **probe_kwargs,
+) -> dict:
+    """Run Stage 5 on a known-clean model and summarize the false-positive
+    rate, mirroring Stage 4's `stego_check.calibrate_on_clean`. Use this on
+    the 'clean' benchmark variant BEFORE trusting any finding on the
+    backdoored/combined variants. `probe_kwargs` are forwarded unchanged to
+    `run_behavioral_check` (input_shape, num_classes, probe budget, ...).
+
+    Every candidate patch on a clean model is a potential false positive,
+    so `candidate_fp_rate_medium_plus` (MEDIUM+ trigger-patch findings /
+    candidates tested) is the number to read. Results on the real
+    benchmark are recorded in PHASE4.md -- do not loosen/tighten the FDR
+    alphas to move this number without first reading that section.
+    """
+    report = run_behavioral_check(model, forward_fn, **probe_kwargs)
+    counts = {s.value: 0 for s in Severity}
+    for f in report.findings:
+        counts[f.severity.value] += 1
+    n_candidates = report.metadata.get("n_candidates_tested", 0)
+    n_fp = sum(
+        1
+        for f in report.findings
+        if f.check == "behavioral_trigger_patch" and f.severity not in (Severity.INFO, Severity.LOW)
+    )
+    return {
+        "mode": report.mode,
+        "total_findings": len(report.findings),
+        "by_severity": counts,
+        "n_candidates_tested": n_candidates,
+        "n_trigger_patch_medium_plus": n_fp,
+        "candidate_fp_rate_medium_plus": (n_fp / n_candidates) if n_candidates else 0.0,
+    }

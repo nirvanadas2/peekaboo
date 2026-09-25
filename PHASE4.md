@@ -1,9 +1,22 @@
-# Phase 4 — Stage 5: Behavioral Probing (DESIGN DOC — no implementation yet)
+# Phase 4 — Stage 5: Behavioral Probing
 
-## Status: design only, not implemented, not reviewed
+## Status: implemented; run against the real benchmark — and it does NOT yet discriminate. NOT wired into `gate.py`.
+
+Sections 1-7 below are the original design doc, kept as written. The
+first implementation (`peekaboo/pipeline/behavioral_probe.py`, committed
+in `5ffb60b`) follows it. It has since been calibrated on the real clean
+benchmark and run across the full 5×3 matrix. **Read "Calibration &
+full-benchmark results" at the end before trusting any Stage 5 output.**
+In short, at the default budget the clean model gets 39 MEDIUM findings
+out of 40 candidates, the same as every tampered variant. Separately, the
+benchmark's own backdoor turns out to be confounded with its task.
+
+---
+
+*Original design doc follows.*
 
 This document proposes a design for Stage 5 (behavioral / trigger
-probing). **No code has been written.** Per Stage 4's own honest
+probing). **No code had been written at the time.** Per Stage 4's own honest
 accounting (PHASE3.md), the pipeline currently has: a weak, ONNX-only
 partial signal on `backdoored`/`combined` from Stage 3, and Stage 4
 (mantissa-bit steganalysis) is structurally incapable of catching
@@ -410,3 +423,177 @@ Sketch, at the field level only:
    FDR is proposed as the default; confirm before it's load-bearing in
    the first implementation, since (per §4) this one isn't optional the
    way it regrettably was left for Stage 4.
+
+---
+
+## Calibration & full-benchmark results
+
+Everything below was run against the real Phase 0 benchmark
+(`generate_benchmark(seed=0)`, fully deterministic). The run used the
+**default** probe budget (`n_carriers=64`, `n_bootstrap=64`, patch sizes
+0.25/0.5 → 4×4 and 8×8, colors ±3.0 → 40 candidates, 128 control trials).
+Results are reported as measured, in the same spirit as PHASE2.md and
+PHASE3.md. No threshold, alpha, or budget default was changed.
+
+**How the model was run.** `peekaboo/benchmark/runnable.py` builds the
+caller-side `forward_fn`. It is for validation only. For safetensors/pt it
+loads the tensors into the known `TinyCNN` class. For `.onnx` it runs the
+file's own graph through `onnx.reference.ReferenceEvaluator`. That
+evaluator ships inside the `onnx` package, which is already a dependency,
+so this needed **no `onnxruntime`**. Its logits match the torch path to
+within 1e-4 (`tests/test_behavioral_benchmark.py::TestOnnxReferencePath`).
+It is slow: about 55s per default-budget probe on TinyCNN, compared with
+under 1s through torch. The calibration entry point is
+`behavioral_probe.calibrate_on_clean(model, forward_fn, **probe_kwargs)`,
+which mirrors Stage 4's.
+
+### Finding 1: the benchmark's backdoor is confounded with its task
+
+The benchmark task is "which quadrant has the highest mean"
+(`data.make_dataset`), and quadrant 0 is the top-left one. The trigger is
+a 3×3 patch of value 6.0 **in the top-left corner**, and its target class
+is **0**. Stamping the trigger raises the top-left quadrant's mean by
+about 54/64 ≈ 0.84. The per-quadrant mean of the N(0,1) images has a
+standard deviation of only 1/8, so the trigger makes top-left the
+brightest quadrant, and class 0 becomes the *correct* answer under the
+task's own labeling rule.
+
+Measured on the same 200 triggered test images the manifest's ASR is
+computed on:
+
+| Model | Triggered → class 0 | Same, restricted to true label ≠ 0 |
+|---|---|---|
+| **clean** (never saw a trigger) | **0.985** | **0.980** |
+| backdoored | 1.000 | 1.000 |
+
+The manifest's `attack_success_rate: 1.0` is therefore almost entirely
+**task behavior, not backdoor behavior**. An untampered model already
+"obeys" this trigger 98.5% of the time. The backdoor adds 1.5 percentage
+points on its own trigger. **The expectation that backdoored/combined
+would be Stage 5's strongest case cannot hold on this benchmark as
+built.** No behavioral detector can separate a backdoor from clean
+behavior when the clean model responds to the trigger in the same way.
+This is a Phase 0 benchmark-design problem, not a Stage 5 problem, and it
+has not been fixed here. Changing it means regenerating the
+backdoored/combined weights, which in turn invalidates PHASE2.md's and
+PHASE3.md's measured numbers for those variants. That decision is flagged
+for the team.
+(`tests/test_behavioral_benchmark.py::TestBenchmarkTriggerConfound`.)
+
+### Finding 2: at default settings Stage 5 flags nearly every candidate, on every variant
+
+| Variant | Format | Trigger-patch HIGH | MEDIUM | LOW | Candidates whose majority is class 0 |
+|---|---|---|---|---|---|
+| clean | safetensors / pt / onnx | 0/0/0 | **39/39/39** | 0 | 13/39 |
+| noisy | safetensors / pt / onnx | 0/0/0 | 40/40/40 | 0 | 14/40 |
+| steganographic | safetensors / pt / onnx | 0/0/0 | 39/39/39 | 0 | 13/39 |
+| backdoored | safetensors / pt / onnx | 0/0/0 | 39/39/39 | 0 | 20/39 |
+| combined | safetensors / pt / onnx | 0/0/0 | 39/39/39 | 0 | 20/39 |
+
+All three formats give identical results, including ONNX run natively
+from its graph with BN fused. The `behavioral_baseline_concentration`
+secondary signal is INFO everywhere: 0.38 → class 1 for the clean-trained
+variants and 0.36 → class 0 for the backdoor-trained ones.
+
+**The clean false-positive rate at MEDIUM+ is 39/40 = 97.5% of
+candidates.** The tampered variants cannot be told apart from clean by
+severity.
+
+**Root cause, traced rather than assumed:** the candidates and the
+controls differ in *intensity*, not only in whether they look like a
+trigger:
+
+- A candidate is a *constant* ±3.0 patch.
+- A control is a patch of the same footprint filled with *N(0,1)*
+  content, which has mean about 0, the same distribution as the carriers.
+
+On a brightness-driven task, a constant +3 patch in any quadrant
+legitimately makes that quadrant the brightest, and a −3 patch makes it
+the darkest. In both cases predictions converge on one class, and the
+clean model does this 90-100% of the time: every +3 candidate on clean
+reaches 87.5-100% hit rate. The null distribution never sees that kind of
+intensity shift, so almost every candidate lands at the empirical p-value
+floor.
+
+The control design separates "structured high-intensity content" from
+"any occlusion", but on this benchmark the intensity itself carries the
+class. The design treats that as a trigger signal. It is actually the
+task's legitimate decision feature. This limitation may matter beyond
+this benchmark: saturated patches are out-of-distribution for most real
+classifiers too, so the same mismatch could generate false positives on
+real-world models.
+
+### Finding 3: BH-FDR is correct on real data, but at the default budget it is saturated and can't do its job
+
+- **It computes correctly.** On every variant each q ≥ its raw p, and the
+  number of discoveries at q<0.05 and q<0.01 matches an independent BH
+  step-up implementation
+  (`TestFullBenchmarkMatrix::test_fdr_q_values_match_an_independent_bh`).
+- **At the default budget it discriminates nothing.** With
+  `n_bootstrap=64`, the smallest possible empirical p is 1/65 ≈ 0.0154.
+  Nearly every candidate ties at that floor. When most p-values are tied
+  at the minimum, BH's step-up barely moves them (0.0154 → 0.0162), so
+  essentially every raw-significant candidate survives correction.
+  - **HIGH (q<0.01) is mathematically unreachable at the default
+    budget**: the minimum possible q is at least 1/(n_bootstrap+1) > 0.01
+    whenever n_bootstrap < 99.
+  - MEDIUM needs at least 13 of 40 candidates tied at the floor. That's
+    common here only because of Finding 2.
+- **More budget makes the false positives worse, not better.** A
+  sensitivity run at `n_bootstrap=999` (safetensors, all 5 variants)
+  moves **clean to 39 HIGH**, and every other variant looks the same
+  (noisy: 39 HIGH + 1 MEDIUM). The floor effect was hiding the
+  intensity-mismatch false positives; it wasn't causing them. So this is
+  not a probe-budget problem. The fix, if there is one, belongs in the
+  control/statistic design (Finding 2).
+
+### Checked and working
+
+- **`mode="not_runnable"` is visible, never silent.** On all 15 benchmark
+  files, calling with `forward_fn=None` returns `mode="not_runnable"`
+  with exactly one `behavioral_runnable` INFO finding
+  (`TestNotRunnableOnRealFiles`). As §1 says, a safetensors/pickle file
+  from an unknown source always takes this path.
+
+### A possible, unvalidated signal (NOT acted on)
+
+The one visible difference between the backdoor-trained variants and the
+clean-trained ones is class asymmetry across the grid. Candidates whose
+majority is class 0: backdoored/combined 20/39, clean 13/39. Most of that
+increase comes from −3 (dark) patches, which push the backdoored model to
+class 0 in positions where the clean model spreads across classes. That
+fits "the backdoor gave class 0 a lower activation threshold", and it is
+roughly the class-level-outlier idea §3 attributes to Neural Cleanse.
+**It was noticed by looking at the backdoored model's own outputs.**
+Building a detector around it now, and validating that detector on the
+same benchmark, would be the circular trap that §3 and PHASE2.md warn
+against. If the team pursues it, it needs a fresh benchmark: a different
+seed, and, per Finding 1, a trigger whose target class is not the
+trigger quadrant's natural class.
+
+### Implications
+
+1. **Stage 5 as implemented does not contribute a usable signal on this
+   benchmark.** Any fusion or ablation result crediting Stage 5 with
+   detecting backdoored/combined would not be supported by these
+   measurements. This is the same standing rule PHASE2.md set for
+   Stage 3.
+2. **Two independent problems, and fixing one alone is not enough:**
+   - **(a) Benchmark.** The trigger/target confound (Finding 1) must be
+     fixed before *any* behavioral detector can be validated on this
+     benchmark.
+   - **(b) Stage 5 design.** The candidate/control intensity mismatch
+     (Finding 2) must be fixed before Stage 5's false-positive rate means
+     anything.
+
+   Both are decisions for the team. Neither was changed here.
+3. The status of Stages 3-5 as fusion inputs, as measured:
+
+   | Stage | Status |
+   |---|---|
+   | Stage 3 | Weak (PHASE2.md). |
+   | Stage 4 | Real signals on noisy/stego/backdoor, but still no FDR correction (PHASE3.md). |
+   | Stage 5 | Non-discriminating. |
+
+   The precondition for starting Stage 6 ("3, 4, and 5 all producing
+   validated, calibrated signals") is **not met**.
