@@ -40,6 +40,13 @@
     font-size: 21px;
   }
 
+  /* The shared .section-shell top padding (140px) left a tall empty band
+     above the heading while the full-height character sat beside it.
+     Two classes so it beats index.css, which loads after this file. */
+  .pk-problem.section-shell {
+    padding-top: 64px;
+  }
+
   .problem-grid {
     display: grid;
     grid-template-columns: minmax(0, 55%) minmax(0, 45%);

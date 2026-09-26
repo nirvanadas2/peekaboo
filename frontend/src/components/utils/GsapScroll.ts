@@ -95,27 +95,28 @@ export function setSectionTimelines() {
     0
   );
 
+  // One-shot reveal rather than scrubbed: the diagram is interactive, so
+  // every box must be fully visible whenever it's on screen. A scrubbed
+  // stagger left later boxes half-faded until the page bottom.
   const archTimeline = gsap.timeline({
     scrollTrigger: {
-      trigger: ".pk-architecture",
-      start: "top 60%",
-      end: "bottom 35%",
-      scrub: 1.5,
-      invalidateOnRefresh: true,
+      trigger: ".arch-canvas",
+      start: "top 80%",
+      toggleActions: "play none none none",
     },
   });
   archTimeline
     .fromTo(
       ".arch-node",
       { opacity: 0.15 },
-      { opacity: 1, stagger: 0.25, duration: 1, ease: "none" },
+      { opacity: 1, stagger: 0.06, duration: 0.5, ease: "power1.out" },
       0
     )
     // Edges use pathLength=1, so a dashoffset of 1 hides the whole curve.
     .fromTo(
       ".arch-edge",
       { strokeDashoffset: 1 },
-      { strokeDashoffset: 0, stagger: 0.12, duration: 1, ease: "none" },
+      { strokeDashoffset: 0, stagger: 0.04, duration: 0.6, ease: "power1.out" },
       0
     );
 }
