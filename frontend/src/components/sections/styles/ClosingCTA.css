@@ -10,14 +10,14 @@
 }
 
 .cta-title {
-  font-size: 34px;
+  font-size: 38px;
   font-weight: 600;
   margin: 0 0 16px;
   max-width: 700px;
 }
 
 .cta-copy {
-  font-size: 17px;
+  font-size: 20px;
   color: #b8bcc4;
   max-width: 520px;
   margin: 0 0 40px;
@@ -30,7 +30,7 @@
   background-color: var(--accent);
   color: var(--background) !important;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 18px;
   letter-spacing: 0.4px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -42,6 +42,6 @@
 
 @media screen and (min-width: 1025px) {
   .cta-title {
-    font-size: 44px;
+    font-size: 49px;
   }
 }

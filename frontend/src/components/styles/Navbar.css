@@ -13,7 +13,7 @@
   z-index: 9999;
 }
 .header ul {
-  font-size: 11px;
+  font-size: 13px;
   display: flex;
   flex-direction: column;
   margin: 0;
@@ -33,7 +33,7 @@
 }
 .navbar-title {
   font-weight: 700;
-  font-size: 13px;
+  font-size: 15px;
   letter-spacing: 1.5px;
   font-family: var(--font-mono);
 }
@@ -43,7 +43,7 @@
   border: 1px solid var(--accent);
   border-radius: 999px;
   color: var(--accent) !important;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.6px;
   font-family: var(--font-mono);
@@ -60,10 +60,10 @@
   .header ul {
     flex-direction: row;
     align-items: center;
-    font-size: 12px;
+    font-size: 14px;
   }
   .navbar-title {
-    font-size: 16px;
+    font-size: 18px;
   }
 }
 @media only screen and (min-width: 1200px) {
@@ -72,14 +72,14 @@
   }
   .header ul {
     column-gap: 40px;
-    font-size: 13px;
+    font-size: 15px;
   }
   .navbar-title {
-    font-size: 18px;
+    font-size: 21px;
   }
   .navbar-cta {
     padding: 10px 20px;
-    font-size: 13px;
+    font-size: 15px;
   }
 }
 

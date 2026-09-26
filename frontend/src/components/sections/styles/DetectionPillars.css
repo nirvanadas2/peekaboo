@@ -1,11 +1,11 @@
 .pillars-title {
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 600;
   margin: 0 0 12px;
 }
 
 .pillars-lede {
-  font-size: 17px;
+  font-size: 20px;
   color: #b8bcc4;
   max-width: 640px;
   margin: 0 0 56px;
@@ -33,7 +33,7 @@
 .pillar-index {
   display: block;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 15px;
   color: var(--accent);
   letter-spacing: 1px;
   margin-bottom: 18px;
@@ -41,13 +41,13 @@
 
 .pillar-name {
   margin: 0 0 12px;
-  font-size: 20px;
+  font-size: 23px;
   font-weight: 600;
 }
 
 .pillar-description {
   margin: 0;
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.6;
   color: #a7abb5;
 }
@@ -61,6 +61,6 @@
 
 @media screen and (min-width: 1025px) {
   .pillars-title {
-    font-size: 42px;
+    font-size: 47px;
   }
 }

@@ -19,14 +19,14 @@ const DashboardPlaceholder = () => {
         style={{
           fontFamily: "var(--font-mono)",
           color: "var(--accent)",
-          fontSize: "13px",
+          fontSize: "15px",
           letterSpacing: "2px",
           textTransform: "uppercase",
         }}
       >
         Risk Dashboard
       </span>
-      <h1 style={{ margin: 0, fontSize: "32px" }}>Dashboard coming soon</h1>
+      <h1 style={{ margin: 0, fontSize: "36px" }}>Dashboard coming soon</h1>
       <p style={{ color: "#a7abb5", maxWidth: "480px" }}>
         The scan results dashboard is being built. Check back soon to see
         Peekaboo's full pipeline output.
@@ -37,7 +37,7 @@ const DashboardPlaceholder = () => {
           marginTop: "12px",
           color: "var(--accent)",
           fontFamily: "var(--font-mono)",
-          fontSize: "14px",
+          fontSize: "16px",
         }}
       >
         ← Back to the landing page

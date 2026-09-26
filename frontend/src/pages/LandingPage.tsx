@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import Hero from "../components/sections/Hero";
 import ProblemStatement from "../components/sections/ProblemStatement";
-import CoverageGapTable from "../components/sections/CoverageGapTable";
 import DetectionPillars from "../components/sections/DetectionPillars";
 import ArchitectureDiagram from "../components/sections/ArchitectureDiagram";
 import ClosingCTA from "../components/sections/ClosingCTA";
@@ -64,8 +63,8 @@ const LandingPage = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Independent of the character rig / device, so coverage table, pillar,
-  // and architecture-diagram reveals still run on mobile or if the 3D
+  // Independent of the character rig / device, so pillar and
+  // architecture-diagram reveals still run on mobile or if the 3D
   // character never mounts.
   useEffect(() => {
     setSectionTimelines();
@@ -77,7 +76,6 @@ const LandingPage = () => {
       {isDesktopView && shouldRenderCharacter && <CharacterModel />}
       <Hero />
       <ProblemStatement />
-      <CoverageGapTable />
       <DetectionPillars />
       <ArchitectureDiagram />
       <ClosingCTA />

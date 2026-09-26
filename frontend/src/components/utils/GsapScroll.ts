@@ -7,7 +7,7 @@ import gsap from "gsap";
 // the right-hand column reserved by .problem-character-space, staying
 // visible next to the Problem Statement text, then fades out (opacity +
 // pointer-events:none) near the end of that section's own scroll range so it
-// never reaches Coverage Gap. Two scroll-scrubbed timelines, handing off
+// never reaches the sections below. Two scroll-scrubbed timelines, handing off
 // rather than one continuous one, keeps each independently correct against
 // its own trigger element.
 export function setCharTimeline(
@@ -55,8 +55,8 @@ export function setCharTimeline(
     .fromTo(".pk-problem", { y: "-50%" }, { y: "0%" }, 0);
 
   // Holds the character in the reserved right-hand column through Problem
-  // Statement's own scroll range, then fades it out right before Coverage
-  // Gap begins.
+  // Statement's own scroll range, then fades it out before the next
+  // section begins.
   const tl2 = gsap.timeline({
     scrollTrigger: {
       trigger: ".pk-problem",
@@ -74,27 +74,11 @@ export function setCharTimeline(
   );
 }
 
-// Reveal timelines for the data-heavy sections (coverage table, pillars,
-// architecture diagram) - same stagger/scrub technique as the source rig's
+// Reveal timelines for the data-heavy sections (pillars, architecture
+// diagram) - same stagger/scrub technique as the source rig's
 // career-timeline reveal, applied to Peekaboo's own content blocks. Runs
 // independently of the character rig, so it works on every device.
 export function setSectionTimelines() {
-  const coverageTimeline = gsap.timeline({
-    scrollTrigger: {
-      trigger: ".pk-coverage",
-      start: "top 60%",
-      end: "bottom 40%",
-      scrub: 1.5,
-      invalidateOnRefresh: true,
-    },
-  });
-  coverageTimeline.fromTo(
-    ".coverage-row",
-    { opacity: 0, y: 40 },
-    { opacity: 1, y: 0, stagger: 0.15, duration: 1, ease: "power2.out" },
-    0
-  );
-
   const pillarsTimeline = gsap.timeline({
     scrollTrigger: {
       trigger: ".pk-pillars",

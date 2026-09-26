@@ -1,11 +1,11 @@
 .arch-title {
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 600;
   margin: 0 0 12px;
 }
 
 .arch-lede {
-  font-size: 17px;
+  font-size: 20px;
   color: #b8bcc4;
   max-width: 640px;
   margin: 0 0 32px;
@@ -23,7 +23,7 @@
 
 .arch-controls-label {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: #7d828c;
@@ -37,7 +37,7 @@
 
 .arch-chip {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 15px;
   color: #d6d9df;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -291,7 +291,7 @@
 .arch-detail-tag,
 .arch-result-label {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 1px;
   color: var(--accent);
   text-transform: uppercase;
@@ -299,7 +299,7 @@
 
 .arch-detail-status {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   border-radius: 999px;
   padding: 2px 9px;
@@ -320,14 +320,14 @@
 }
 
 .arch-detail-title {
-  font-size: 22px;
+  font-size: 25px;
   font-weight: 600;
   margin: 6px 0 8px;
 }
 
 .arch-detail-summary {
   color: #b8bcc4;
-  font-size: 15px;
+  font-size: 17px;
   margin: 0 0 12px;
 }
 
@@ -335,7 +335,7 @@
   margin: 0 0 14px;
   padding-left: 18px;
   color: #d6d9df;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .arch-detail-points li {
@@ -351,14 +351,14 @@
   padding: 10px 12px;
   border-left: 2px solid var(--accent);
   background: rgba(79, 216, 255, 0.06);
-  font-size: 14px;
+  font-size: 16px;
   color: #e3e6ea;
 }
 
 .arch-detail-note span {
   display: block;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--accent);
@@ -367,7 +367,7 @@
 
 .arch-detail-source {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   color: #7d828c;
   overflow-wrap: anywhere;
 }
@@ -386,12 +386,12 @@
 .arch-result-hint,
 .arch-result-summary {
   color: #b8bcc4;
-  font-size: 14px;
+  font-size: 16px;
   margin: 0;
 }
 
 .arch-result-verdict {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
   margin: 0;
   color: #fff;
@@ -399,14 +399,14 @@
 
 .arch-result-exit {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 16px;
   color: var(--accent);
   margin: 0;
 }
 
 .arch-result-running {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 16px;
   color: #d6d9df;
   margin: 0;
 }
@@ -420,7 +420,7 @@
   padding: 0;
   margin: 6px 0 0;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   color: #9aa0aa;
 }
 
@@ -469,6 +469,6 @@
 
 @media screen and (min-width: 1025px) {
   .arch-title {
-    font-size: 42px;
+    font-size: 47px;
   }
 }
