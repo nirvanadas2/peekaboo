@@ -127,10 +127,11 @@ export function setSectionTimelines() {
       { opacity: 1, stagger: 0.25, duration: 1, ease: "none" },
       0
     )
+    // Edges use pathLength=1, so a dashoffset of 1 hides the whole curve.
     .fromTo(
       ".arch-edge",
-      { scaleX: 0 },
-      { scaleX: 1, stagger: 0.25, duration: 1, ease: "none", transformOrigin: "left center" },
+      { strokeDashoffset: 1 },
+      { strokeDashoffset: 0, stagger: 0.12, duration: 1, ease: "none" },
       0
     );
 }
