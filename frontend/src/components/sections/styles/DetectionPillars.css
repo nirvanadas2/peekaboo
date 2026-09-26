@@ -1,0 +1,66 @@
+.pillars-title {
+  font-size: 32px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.pillars-lede {
+  font-size: 17px;
+  color: #b8bcc4;
+  max-width: 640px;
+  margin: 0 0 56px;
+}
+
+.pillars-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+.pillar-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 32px 28px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color 0.25s ease, background-color 0.25s ease;
+}
+
+.pillar-card:hover {
+  border-color: var(--accent);
+  background: rgba(79, 216, 255, 0.05);
+}
+
+.pillar-index {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  letter-spacing: 1px;
+  margin-bottom: 18px;
+}
+
+.pillar-name {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.pillar-description {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #a7abb5;
+}
+
+@media screen and (min-width: 768px) {
+  .pillars-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+}
+
+@media screen and (min-width: 1025px) {
+  .pillars-title {
+    font-size: 42px;
+  }
+}

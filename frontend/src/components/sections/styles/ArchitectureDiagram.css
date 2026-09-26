@@ -1,0 +1,80 @@
+.arch-title {
+  font-size: 32px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.arch-lede {
+  font-size: 17px;
+  color: #b8bcc4;
+  max-width: 640px;
+  margin: 0 0 56px;
+}
+
+.arch-diagram {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.arch-step {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.arch-node {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.arch-node-index {
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.arch-node-label {
+  font-size: 14px;
+  letter-spacing: 0.4px;
+}
+
+.arch-edge {
+  height: 2px;
+  flex: 1;
+  min-width: 24px;
+  background: linear-gradient(to right, var(--accent), rgba(79, 216, 255, 0.15));
+  margin: 0 4px;
+}
+
+@media screen and (max-width: 900px) {
+  .arch-diagram {
+    gap: 0;
+  }
+  .arch-step {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .arch-node {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .arch-edge {
+    width: 2px;
+    height: 24px;
+    margin: 4px 0 4px 30px;
+    background: linear-gradient(to bottom, var(--accent), rgba(79, 216, 255, 0.15));
+  }
+}
+
+@media screen and (min-width: 1025px) {
+  .arch-title {
+    font-size: 42px;
+  }
+}
