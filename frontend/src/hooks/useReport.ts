@@ -23,7 +23,10 @@ export const DEMO_REPORTS: DemoReport[] = [
   },
 ];
 
-export type ReportSource = { kind: "upload"; fileName: string } | { kind: "demo"; id: string };
+export type ReportSource =
+  | { kind: "upload"; fileName: string }
+  | { kind: "demo"; id: string }
+  | { kind: "scan"; fileName: string };
 
 function isPeekabooReport(value: unknown): value is PeekabooReport {
   if (typeof value !== "object" || value === null) return false;
@@ -88,7 +91,63 @@ export function useReport() {
     }
   }, []);
 
+  const loadFromScan = useCallback(async (file: File) => {
+    setState((s) => ({ ...s, loading: true, error: null }));
+    const formData = new FormData();
+    formData.append("file", file);
+
+    // peekaboo/api.py, proxied by vite.config.ts's /api -> :8000 rewrite
+    // (PHASE7.md). Never sends a forward_fn -- an uploaded model's
+    // behavioral pillar always comes back not_run; that's the honest
+    // answer, not a bug in this call.
+    let res: Response;
+    try {
+      res = await fetch("/api/scan", { method: "POST", body: formData });
+    } catch {
+      // fetch() itself throwing (not an HTTP error response) means the
+      // server likely isn't running -- the realistic mistake in the
+      // two-terminal dev workflow (PHASE7.md), so name it specifically
+      // rather than a generic "failed to fetch".
+      setState((s) => ({
+        ...s,
+        loading: false,
+        error: "Couldn't reach the scan server. Is it running? (uvicorn peekaboo.api:app --reload)",
+      }));
+      return;
+    }
+
+    try {
+      if (!res.ok) {
+        // Vite's dev proxy answers with a plain-text 502 (not a thrown
+        // fetch error, confirmed by testing) when it can't reach the
+        // Python server at all -- the same "forgot to start uvicorn"
+        // case the catch block above is watching for, just surfaced as
+        // an HTTP status here instead of an exception.
+        if (res.status === 502) {
+          throw new Error("Couldn't reach the scan server. Is it running? (uvicorn peekaboo.api:app --reload)");
+        }
+        const body: unknown = await res.json().catch(() => null);
+        const detail =
+          body && typeof body === "object" && typeof (body as { detail?: unknown }).detail === "string"
+            ? (body as { detail: string }).detail
+            : `Scan failed (HTTP ${res.status}).`;
+        throw new Error(detail);
+      }
+      const parsed: unknown = await res.json();
+      if (!isPeekabooReport(parsed)) {
+        throw new Error("The scan server returned something that doesn't look like a Peekaboo report.");
+      }
+      setState({ report: parsed, source: { kind: "scan", fileName: file.name }, loading: false, error: null });
+    } catch (err) {
+      setState((s) => ({
+        ...s,
+        loading: false,
+        error: err instanceof Error ? err.message : "Failed to scan that file.",
+      }));
+    }
+  }, []);
+
   const clear = useCallback(() => setState(INITIAL_STATE), []);
 
-  return { ...state, loadFromFile, loadDemo, clear };
+  return { ...state, loadFromFile, loadDemo, loadFromScan, clear };
 }

@@ -1,4 +1,5 @@
 import type { PeekabooReport, RiskLevel } from "../../types/report";
+import type { ReportSource } from "../../hooks/useReport";
 import "./styles/VerdictBanner.css";
 
 // Mirrors peekaboo/report.py::_VERDICT. Kept in sync by hand since the
@@ -11,11 +12,24 @@ const VERDICT_COPY: Record<RiskLevel, string> = {
   critical: "HIGH RISK — do not deploy without investigation",
 };
 
-interface VerdictBannerProps {
-  report: PeekabooReport;
+// The 0.50 AUC figure is measured only on the TinyCNN benchmark
+// (PHASE6.md) -- quoting it for an arbitrary uploaded model would
+// overclaim precision that doesn't transfer. Only a "demo" source is
+// that exact measured benchmark; live scans and uploaded JSON reports
+// (which could be from anywhere) get the qualitative claim only.
+function notAssessedCopy(level: string, isMeasuredBenchmark: boolean): string {
+  const evidence = isMeasuredBenchmark
+    ? "on held-out data, backdoor detection AUC without a runnable model falls to 0.50 (chance)"
+    : "this is a fundamental limitation of static analysis, not specific to this file";
+  return `Behavioral probing did not run for this scan. No static check detects backdoors — ${evidence}. This report's ${level.toUpperCase()} score does not mean the model is backdoor-free.`;
 }
 
-const VerdictBanner = ({ report }: VerdictBannerProps) => {
+interface VerdictBannerProps {
+  report: PeekabooReport;
+  source: ReportSource | null;
+}
+
+const VerdictBanner = ({ report, source }: VerdictBannerProps) => {
   const { scan } = report;
 
   if (scan.stopped_at_metadata || !scan.risk_score) {
@@ -66,11 +80,7 @@ const VerdictBanner = ({ report }: VerdictBannerProps) => {
       {behavioralNotRun && (
         <div className="verdict-banner-warning" role="alert">
           <span className="verdict-banner-warning-tag">Not assessed</span>
-          <p>
-            Behavioral probing did not run for this scan. No static check detects backdoors — on
-            held-out data, backdoor detection AUC without a runnable model falls to 0.50 (chance).
-            This report's {level.toUpperCase()} score does not mean the model is backdoor-free.
-          </p>
+          <p>{notAssessedCopy(level, source?.kind === "demo")}</p>
         </div>
       )}
     </div>

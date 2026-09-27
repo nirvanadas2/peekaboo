@@ -41,6 +41,8 @@ See [PHASE6.md](PHASE6.md) for what the project can and cannot claim.
 
 Every benchmark-backed number is measured on committed fixtures (`tests/fixtures/`), because regenerated weights differ in their lowest mantissa bits across torch/CPU builds.
 
+Phase 7: a minimal local API (`peekaboo/api.py`, `pip install -e ".[api]"`) wraps `run_pre_checks` so `frontend/`'s dashboard can scan an uploaded model directly. It never builds a `forward_fn` for an uploaded model, so a live scan's behavioral pillar is always "not assessed" -- the same limitation `--tinycnn` already documents, now hitting real uploads. Large-file scan time is untested. See [PHASE7.md](PHASE7.md).
+
 ## Usage
 
 ```

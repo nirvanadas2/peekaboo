@@ -13,6 +13,7 @@ import LimitationsFooter from "../components/dashboard/LimitationsFooter";
 import { isDrivingPillar } from "../lib/risk";
 import type { NodeId } from "../data/pipelineNodes";
 import type { PeekabooReport, PillarKey } from "../types/report";
+import type { ReportSource } from "../hooks/useReport";
 import "./styles/Dashboard.css";
 
 const PILLAR_LABELS: Record<PillarKey, string> = {
@@ -27,7 +28,7 @@ const STAGE_TO_PILLAR: Partial<Record<NodeId, PillarKey>> = {
   s5: "behavioral",
 };
 
-const ReportView = ({ report }: { report: PeekabooReport }) => {
+const ReportView = ({ report, source }: { report: PeekabooReport; source: ReportSource | null }) => {
   const pillarRefs = useRef<Partial<Record<PillarKey, HTMLDivElement | null>>>({});
 
   const scrollToPillar = useCallback((key: PillarKey) => {
@@ -46,7 +47,7 @@ const ReportView = ({ report }: { report: PeekabooReport }) => {
 
   return (
     <div className="dashboard-report">
-      <VerdictBanner report={report} />
+      <VerdictBanner report={report} source={source} />
       <PipelineStatusStrip report={report} onSelect={handleStageSelect} />
 
       {rs && (
@@ -98,7 +99,7 @@ const ReportView = ({ report }: { report: PeekabooReport }) => {
 };
 
 const Dashboard = () => {
-  const { report, source, loading, error, loadFromFile, loadDemo, clear } = useReport();
+  const { report, source, loading, error, loadFromFile, loadDemo, loadFromScan, clear } = useReport();
 
   // The landing page's scroll-story keeps body { overflow: hidden } (see
   // index.css) and switches it to auto itself once ready (initialFX.ts).
@@ -128,6 +129,7 @@ const Dashboard = () => {
           loading={loading}
           error={error}
           onFileSelected={loadFromFile}
+          onScanSelected={loadFromScan}
           onDemoSelected={loadDemo}
           onClear={clear}
         />
@@ -138,7 +140,7 @@ const Dashboard = () => {
           </p>
         )}
 
-        {report && <ReportView report={report} />}
+        {report && <ReportView report={report} source={source} />}
       </div>
     </div>
   );

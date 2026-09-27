@@ -33,6 +33,13 @@
   margin-bottom: 6px;
 }
 
+.report-source-scan-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #7d828c;
+}
+
 .report-source-drop-hint {
   display: block;
   font-family: var(--font-mono);
