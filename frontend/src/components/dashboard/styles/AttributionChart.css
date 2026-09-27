@@ -1,0 +1,149 @@
+.attribution-chart {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 24px 24px 20px;
+}
+
+.attribution-chart-plot {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-evenly;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 0 8px;
+}
+
+.attribution-chart-threshold {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--severity-medium);
+  opacity: 0.55;
+}
+
+.attribution-chart-threshold-label {
+  position: absolute;
+  right: 2px;
+  top: -16px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--severity-medium);
+  white-space: nowrap;
+}
+
+.attribution-chart-col {
+  position: relative;
+  width: 104px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.attribution-chart-col.is-driving .attribution-chart-bar {
+  box-shadow: 0 0 0 1px var(--accent), 0 0 14px var(--accent-glow);
+}
+
+.attribution-chart-value {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: #eae5ec;
+  white-space: nowrap;
+}
+
+.attribution-chart-value.is-not-run {
+  color: var(--severity-not-run);
+  font-size: 12px;
+}
+
+.attribution-chart-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 22px;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.3s ease;
+}
+
+.attribution-chart-bar.is-clean {
+  background: var(--severity-info);
+}
+
+.attribution-chart-bar.is-flag-medium {
+  background: var(--severity-medium);
+}
+
+.attribution-chart-bar.is-flag-high {
+  background: var(--severity-high);
+}
+
+.attribution-chart-bar.is-flag-critical {
+  background: var(--severity-critical);
+}
+
+.attribution-chart-bar.is-not-run {
+  background: none;
+  border: 1px dashed var(--severity-not-run);
+  border-radius: 4px;
+}
+
+.attribution-chart-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: #0d1015;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  font-size: 13px;
+  color: #d6d9df;
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 5;
+}
+
+.attribution-chart-tooltip strong {
+  font-size: 14px;
+  color: #fff;
+}
+
+.attribution-chart-col:hover .attribution-chart-tooltip,
+.attribution-chart-col:focus-visible .attribution-chart-tooltip {
+  opacity: 1;
+}
+
+.attribution-chart-labels {
+  display: flex;
+  justify-content: space-evenly;
+  padding: 0 8px;
+  margin-top: 10px;
+}
+
+.attribution-chart-label {
+  width: 104px;
+  text-align: center;
+  font-size: 13px;
+  color: #b8bcc4;
+}
+
+.attribution-chart-caption {
+  margin: 18px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 15px;
+  color: #d6d9df;
+}

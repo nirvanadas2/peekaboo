@@ -1,0 +1,182 @@
+.stego-findings {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 24px 24px 20px;
+}
+
+.stego-findings-head {
+  margin-bottom: 16px;
+}
+
+.stego-findings-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #eae5ec;
+}
+
+.stego-findings-meta {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: #a7abb5;
+}
+
+.stego-findings-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #b8bcc4;
+  cursor: pointer;
+}
+
+.stego-findings-empty {
+  margin: 0;
+  font-size: 14px;
+  color: #7d828c;
+}
+
+.stego-findings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stego-layer-group {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.stego-layer-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.stego-layer-summary::-webkit-details-marker {
+  display: none;
+}
+
+.stego-layer-summary::before {
+  content: "▸";
+  color: #7d828c;
+  font-size: 12px;
+  transition: transform 0.15s ease;
+}
+
+.stego-layer-group[open] > .stego-layer-summary::before {
+  transform: rotate(90deg);
+}
+
+.stego-layer-name {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: #eae5ec;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.stego-layer-count {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #7d828c;
+  white-space: nowrap;
+}
+
+.stego-layer-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.stego-layer-q {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.stego-layer-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.stego-layer-table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #7d828c;
+  padding: 8px 14px 4px;
+}
+
+.stego-layer-table td {
+  padding: 4px 14px;
+  vertical-align: top;
+  color: #d6d9df;
+}
+
+.stego-layer-table td code {
+  font-size: 12px;
+}
+
+.stego-layer-message {
+  color: #a7abb5;
+}
+
+.stego-layer-severity-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Severity color mapping, shared visually with PillarCard/PipelineStatusStrip. */
+.stego-layer-severity-label.sev-info,
+.stego-layer-badge.sev-info {
+  color: var(--severity-info);
+}
+.stego-layer-severity-label.sev-low,
+.stego-layer-badge.sev-low {
+  color: var(--severity-low);
+}
+.stego-layer-severity-label.sev-medium,
+.stego-layer-badge.sev-medium {
+  color: var(--severity-medium);
+}
+.stego-layer-severity-label.sev-high,
+.stego-layer-badge.sev-high {
+  color: var(--severity-high);
+}
+.stego-layer-severity-label.sev-critical,
+.stego-layer-badge.sev-critical {
+  color: var(--severity-critical);
+}
+
+.stego-layer-badge.sev-info {
+  background: rgba(154, 164, 178, 0.14);
+}
+.stego-layer-badge.sev-low {
+  background: rgba(125, 211, 252, 0.14);
+}
+.stego-layer-badge.sev-medium {
+  background: rgba(255, 207, 86, 0.16);
+}
+.stego-layer-badge.sev-high {
+  background: rgba(255, 138, 61, 0.16);
+}
+.stego-layer-badge.sev-critical {
+  background: rgba(255, 69, 87, 0.16);
+}

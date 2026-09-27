@@ -1,0 +1,113 @@
+.pillar-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pillar-card.is-driving {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 18px var(--accent-glow);
+}
+
+.pillar-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pillar-card-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #eae5ec;
+}
+
+.pillar-card-status {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.pillar-card.st-not_run .pillar-card-status {
+  color: var(--severity-not-run);
+  border-style: dashed;
+}
+
+.pillar-card.st-ran_clean .pillar-card-status {
+  color: var(--severity-info);
+}
+
+.pillar-card.st-flag-medium .pillar-card-status {
+  color: var(--severity-medium);
+}
+
+.pillar-card.st-flag-high .pillar-card-status {
+  color: var(--severity-high);
+}
+
+.pillar-card.st-flag-critical .pillar-card-status,
+.pillar-card.st-flag-low .pillar-card-status,
+.pillar-card.st-flag-info .pillar-card-status {
+  color: var(--severity-critical);
+}
+
+.pillar-card-score {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.pillar-card-score-value {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.pillar-card-score-value--na {
+  color: var(--severity-not-run);
+}
+
+.pillar-card-report-only {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #7d828c;
+  border: 1px dashed rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.pillar-card-summary {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #a7abb5;
+}
+
+.pillar-card-flag-count {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #7d828c;
+}
+
+.pillar-card-driving-note {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+}

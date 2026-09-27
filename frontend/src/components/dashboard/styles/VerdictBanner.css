@@ -1,0 +1,98 @@
+.verdict-banner {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 4px solid var(--severity-info);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.verdict-banner--info,
+.verdict-banner--low {
+  border-left-color: var(--severity-info);
+}
+
+.verdict-banner--medium {
+  border-left-color: var(--severity-medium);
+}
+
+.verdict-banner--high {
+  border-left-color: var(--severity-high);
+}
+
+.verdict-banner--critical,
+.verdict-banner--unsafe {
+  border-left-color: var(--severity-critical);
+}
+
+.verdict-banner-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.verdict-banner-tag {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #fff;
+}
+
+.verdict-banner-caveat {
+  color: var(--severity-not-run);
+}
+
+.verdict-banner-score {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  color: var(--accent);
+}
+
+.verdict-banner-copy {
+  margin: 0;
+  font-size: 17px;
+  color: #d6d9df;
+}
+
+.verdict-banner-explanation {
+  margin: 0;
+  font-size: 15px;
+  color: #a7abb5;
+}
+
+.verdict-banner-meta {
+  margin: 4px 0 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #7d828c;
+  overflow-wrap: anywhere;
+}
+
+.verdict-banner-warning {
+  margin-top: 8px;
+  padding: 14px 16px;
+  border-left: 3px solid var(--severity-not-run);
+  background: rgba(91, 98, 112, 0.12);
+  border-radius: 0 8px 8px 0;
+}
+
+.verdict-banner-warning-tag {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--severity-not-run);
+  margin-bottom: 4px;
+}
+
+.verdict-banner-warning p {
+  margin: 0;
+  font-size: 15px;
+  color: #d6d9df;
+}

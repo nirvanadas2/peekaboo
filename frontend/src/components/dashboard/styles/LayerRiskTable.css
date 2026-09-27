@@ -1,0 +1,70 @@
+.layer-risk {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 24px;
+}
+
+.layer-risk-title {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #eae5ec;
+}
+
+.layer-risk-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.layer-risk-table td {
+  padding: 8px 0;
+  vertical-align: middle;
+}
+
+.layer-risk-name {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #d6d9df;
+  white-space: nowrap;
+  padding-right: 16px;
+  width: 1%;
+}
+
+.layer-risk-meter-cell {
+  width: 100%;
+}
+
+.layer-risk-meter {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.layer-risk-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.layer-risk-meter-fill.band-low {
+  background: var(--severity-info);
+}
+.layer-risk-meter-fill.band-medium {
+  background: var(--severity-medium);
+}
+.layer-risk-meter-fill.band-high {
+  background: var(--severity-high);
+}
+.layer-risk-meter-fill.band-critical {
+  background: var(--severity-critical);
+}
+
+.layer-risk-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #eae5ec;
+  text-align: right;
+  padding-left: 16px;
+  white-space: nowrap;
+}

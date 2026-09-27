@@ -1,0 +1,3140 @@
+{
+  "report_version": "1",
+  "verdict": "medium",
+  "limitations": [
+    "Behavioral probing (backdoors) only runs when a caller-supplied forward_fn is given; safetensors/pickle files carry no computation graph. Without it, backdoors are NOT assessed -- no static check detects them on the benchmark.",
+    "Backdoor detection covers localized, bright, high-contrast patch triggers only (not blended, frequency-domain, warping, dark or semantic triggers). Held-out (3 pre-registered suites): 21/26 backdoors detected, 0/78 false positives on backdoor-free models. The class-asymmetry test assumes classes are spatially symmetric under bright patches, true for the benchmark task, not in general. Trigger positions reported are hints, not locations.",
+    "Steganography detection only catches STRUCTURED (e.g. unencrypted text), DENSE payloads (roughly >=50% of a layer's low-bit capacity). An encrypted/random-looking payload is undetectable at any density. The benchmark's own 67-byte payload is not detected.",
+    "The bit-level tests correct for PyTorch's default initialization only; models initialized differently may show false positives from never-updated weights.",
+    "Statistical (Stage 3) findings are report-only: they detected no tampering on any suite and flagged 1-4 of 10 clean models per suite, so they do not affect the score.",
+    "Noise injection is detected via its low-bit signature: held-out 16/20, 0/80 false positives on noise-free models; detection evidence is sometimes weak (MEDIUM).",
+    "All accuracy figures come from one small synthetic architecture (TinyCNN) and task; they are evidence the mechanisms work, not calibrated real-world rates."
+  ],
+  "scan": {
+    "stopped_at_metadata": false,
+    "metadata": {
+      "model_path": "tests/fixtures/benchmark/steganographic.safetensors",
+      "declared_format": "safetensors",
+      "detected_format": "safetensors",
+      "file_size": 92304,
+      "file_hash": "015e0f2b4b6269779196d382be2222d294c53e858d232b32b5a8c9c004456a9e",
+      "passed": true,
+      "hard_fail": false,
+      "findings": [
+        {
+          "check": "file_hash_sha256",
+          "severity": "info",
+          "passed": true,
+          "message": "SHA-256: 015e0f2b4b6269779196d382be2222d294c53e858d232b32b5a8c9c004456a9e",
+          "details": {
+            "sha256": "015e0f2b4b6269779196d382be2222d294c53e858d232b32b5a8c9c004456a9e",
+            "file_size": 92304
+          }
+        },
+        {
+          "check": "extension_matches_content",
+          "severity": "info",
+          "passed": true,
+          "message": "File extension matches the detected content format ('safetensors')",
+          "details": {}
+        },
+        {
+          "check": "safetensors_header_valid",
+          "severity": "info",
+          "passed": true,
+          "message": "Header parses as valid JSON within file bounds",
+          "details": {}
+        },
+        {
+          "check": "safetensors_no_extra_keys",
+          "severity": "info",
+          "passed": true,
+          "message": "No unexpected keys in tensor header entries",
+          "details": {}
+        },
+        {
+          "check": "safetensors_offsets_valid",
+          "severity": "info",
+          "passed": true,
+          "message": "All tensor data_offsets are well-formed and within file bounds",
+          "details": {}
+        }
+      ],
+      "metadata": {
+        "safetensors_file_metadata": {},
+        "num_tensor_entries": 34
+      }
+    },
+    "structural": {
+      "model_path": "tests/fixtures/benchmark/steganographic.safetensors",
+      "mode": "self_consistency",
+      "passed": true,
+      "findings": [
+        {
+          "check": "no_degenerate_shapes",
+          "severity": "info",
+          "passed": true,
+          "message": "No tensors with a zero-sized dimension",
+          "details": {}
+        },
+        {
+          "check": "dtype_uniformity",
+          "severity": "info",
+          "passed": true,
+          "message": "All tensors share dtype 'float32'",
+          "details": {}
+        },
+        {
+          "check": "consecutive_dimension_chain",
+          "severity": "info",
+          "passed": true,
+          "message": "All 7 linear/conv2d layers chain consistently",
+          "details": {}
+        },
+        {
+          "check": "weight_bias_shape_consistency",
+          "severity": "info",
+          "passed": true,
+          "message": "All 7 weight/bias pairs are shape-consistent",
+          "details": {}
+        },
+        {
+          "check": "param_count_profile",
+          "severity": "info",
+          "passed": true,
+          "message": "Total params: 22464; median tensor size: 24",
+          "details": {
+            "total_params": 22464,
+            "median_tensor_params": 24.0,
+            "large_outliers": {}
+          }
+        },
+        {
+          "check": "naming_pattern_outliers",
+          "severity": "info",
+          "passed": true,
+          "message": "7 layer name(s) don't fit the dominant naming pattern 'bn#' (informational only \u2014 commonly includes a legitimate one-off layer like a final classifier head, alongside any genuinely stray tensor): ['conv1', 'conv2', 'conv3', 'conv4', 'fc1', 'fc2', 'fc3']",
+          "details": {
+            "outliers": [
+              "conv1",
+              "conv2",
+              "conv3",
+              "conv4",
+              "fc1",
+              "fc2",
+              "fc3"
+            ],
+            "dominant_template": "bn#"
+          }
+        }
+      ],
+      "metadata": {
+        "num_tensors": 34,
+        "total_params": 22464
+      }
+    },
+    "statistical": {
+      "model_path": "tests/fixtures/benchmark/steganographic.safetensors",
+      "mode": "relative_outlier",
+      "passed": true,
+      "findings": [
+        {
+          "check": "mean_outliers",
+          "severity": "info",
+          "passed": true,
+          "message": "No relative outliers detected in mean across 7 layer(s)",
+          "details": {
+            "mode": "relative_outlier",
+            "population_size": 7
+          }
+        },
+        {
+          "check": "std_outliers",
+          "severity": "info",
+          "passed": true,
+          "message": "No relative outliers detected in std across 7 layer(s)",
+          "details": {
+            "mode": "relative_outlier",
+            "population_size": 7
+          }
+        },
+        {
+          "check": "kurtosis_outliers",
+          "severity": "info",
+          "passed": true,
+          "message": "No relative outliers detected in kurtosis across 7 layer(s)",
+          "details": {
+            "mode": "relative_outlier",
+            "population_size": 7
+          }
+        },
+        {
+          "check": "entropy_outliers",
+          "severity": "info",
+          "passed": true,
+          "message": "No relative outliers detected in entropy across 7 layer(s)",
+          "details": {
+            "mode": "relative_outlier",
+            "population_size": 7
+          }
+        }
+      ],
+      "metadata": {
+        "num_layers_analyzed": 7,
+        "weight_bearing_population": [
+          "conv1.weight",
+          "conv2.weight",
+          "conv3.weight",
+          "conv4.weight",
+          "fc1.weight",
+          "fc2.weight",
+          "fc3.weight"
+        ],
+        "per_layer_stats": {
+          "bn1.bias": {
+            "n": 8,
+            "mean": 0.0033155588316731155,
+            "std": 0.05818640244118175,
+            "skewness": 0.4524532326959433,
+            "kurtosis": -1.4039332278910448,
+            "entropy": 1.75,
+            "normalized_entropy": 0.875,
+            "reliable_kurtosis": true
+          },
+          "bn1.running_mean": {
+            "n": 8,
+            "mean": 0.07802264951169491,
+            "std": 0.209179922784889,
+            "skewness": -0.6459782439244415,
+            "kurtosis": -0.771347413253824,
+            "entropy": 1.811278124459133,
+            "normalized_entropy": 0.9056390622295665,
+            "reliable_kurtosis": true
+          },
+          "bn1.running_var": {
+            "n": 8,
+            "mean": 0.3654823452234268,
+            "std": 0.07056047077543338,
+            "skewness": 1.7369992121410451,
+            "kurtosis": 1.8866300947504993,
+            "entropy": 1.2987949406953985,
+            "normalized_entropy": 0.6493974703476992,
+            "reliable_kurtosis": true
+          },
+          "bn1.weight": {
+            "n": 8,
+            "mean": 0.9961132481694221,
+            "std": 0.035596646933272025,
+            "skewness": -0.5177341282137249,
+            "kurtosis": -0.6810290979616176,
+            "entropy": 1.4056390622295665,
+            "normalized_entropy": 0.7028195311147832,
+            "reliable_kurtosis": true
+          },
+          "bn2.bias": {
+            "n": 16,
+            "mean": -0.03291077015455812,
+            "std": 0.07507029828000675,
+            "skewness": 0.6650303545512682,
+            "kurtosis": 0.12669506578554124,
+            "entropy": 1.8828560636920488,
+            "normalized_entropy": 0.9414280318460244,
+            "reliable_kurtosis": true
+          },
+          "bn2.running_mean": {
+            "n": 16,
+            "mean": -0.3888603316154331,
+            "std": 0.49999086035864415,
+            "skewness": 0.18597178767205216,
+            "kurtosis": -0.4652671260036696,
+            "entropy": 1.764097655573916,
+            "normalized_entropy": 0.882048827786958,
+            "reliable_kurtosis": true
+          },
+          "bn2.running_var": {
+            "n": 16,
+            "mean": 0.3813389092683792,
+            "std": 0.11904592921622013,
+            "skewness": 1.3312629940570568,
+            "kurtosis": 1.2158277297401856,
+            "entropy": 1.5919171866886992,
+            "normalized_entropy": 0.7959585933443496,
+            "reliable_kurtosis": true
+          },
+          "bn2.weight": {
+            "n": 16,
+            "mean": 1.002190463244915,
+            "std": 0.03471351754665028,
+            "skewness": -0.20001296639177985,
+            "kurtosis": 0.23336699955310714,
+            "entropy": 1.7961796919474975,
+            "normalized_entropy": 0.8980898459737487,
+            "reliable_kurtosis": true
+          },
+          "bn3.bias": {
+            "n": 24,
+            "mean": -0.08276320147948961,
+            "std": 0.04348257796598673,
+            "skewness": -0.6491047974156154,
+            "kurtosis": -0.17117787907695758,
+            "entropy": 1.7841591278514217,
+            "normalized_entropy": 0.8920795639257109,
+            "reliable_kurtosis": true
+          },
+          "bn3.running_mean": {
+            "n": 24,
+            "mean": -0.10941432509571314,
+            "std": 0.6362899751661134,
+            "skewness": -0.702566669558859,
+            "kurtosis": 0.45925333539721036,
+            "entropy": 1.8149455891497532,
+            "normalized_entropy": 0.9074727945748766,
+            "reliable_kurtosis": true
+          },
+          "bn3.running_var": {
+            "n": 24,
+            "mean": 0.4981131354967753,
+            "std": 0.16871716758813843,
+            "skewness": 0.5680929671026207,
+            "kurtosis": -0.5437052404080855,
+            "entropy": 1.7841591278514217,
+            "normalized_entropy": 0.8920795639257109,
+            "reliable_kurtosis": true
+          },
+          "bn3.weight": {
+            "n": 24,
+            "mean": 0.9944925084710121,
+            "std": 0.04811316972392565,
+            "skewness": 0.3092479734711931,
+            "kurtosis": -1.15018666479452,
+            "entropy": 1.949082295352821,
+            "normalized_entropy": 0.9745411476764105,
+            "reliable_kurtosis": true
+          },
+          "bn4.bias": {
+            "n": 32,
+            "mean": 0.036677939830042305,
+            "std": 0.03310148178532214,
+            "skewness": 0.34582505355514803,
+            "kurtosis": -0.06056578075904495,
+            "entropy": 2.0804399385868573,
+            "normalized_entropy": 0.895996712029009,
+            "reliable_kurtosis": true
+          },
+          "bn4.running_mean": {
+            "n": 32,
+            "mean": 0.1775776669383049,
+            "std": 0.6160972049327246,
+            "skewness": -0.11588589368457052,
+            "kurtosis": -0.6545180271907616,
+            "entropy": 2.2961796919474975,
+            "normalized_entropy": 0.9889107664459722,
+            "reliable_kurtosis": true
+          },
+          "bn4.running_var": {
+            "n": 32,
+            "mean": 0.7605017349123955,
+            "std": 0.3203938981038072,
+            "skewness": 1.1490264538493995,
+            "kurtosis": 0.8690882810308045,
+            "entropy": 1.947202335584122,
+            "normalized_entropy": 0.8386143997618417,
+            "reliable_kurtosis": true
+          },
+          "bn4.weight": {
+            "n": 32,
+            "mean": 1.0887825153768063,
+            "std": 0.04503734564615456,
+            "skewness": 0.2995604389089054,
+            "kurtosis": -0.7150794724082976,
+            "entropy": 2.197169235259032,
+            "normalized_entropy": 0.9462692837461092,
+            "reliable_kurtosis": true
+          },
+          "conv1.bias": {
+            "n": 8,
+            "mean": 0.0842118882574141,
+            "std": 0.22074397958272052,
+            "skewness": -0.6745936585648751,
+            "kurtosis": -0.6557474207902114,
+            "entropy": 1.811278124459133,
+            "normalized_entropy": 0.9056390622295665,
+            "reliable_kurtosis": true
+          },
+          "conv1.weight": {
+            "n": 72,
+            "mean": -0.013863142327560732,
+            "std": 0.20543059930458477,
+            "skewness": -0.02426406744163805,
+            "kurtosis": -1.1654122841765937,
+            "entropy": 2.934977448486726,
+            "normalized_entropy": 0.978325816162242,
+            "reliable_kurtosis": true
+          },
+          "conv2.bias": {
+            "n": 16,
+            "mean": -0.03573534425231628,
+            "std": 0.0778930578161806,
+            "skewness": 0.576203509222901,
+            "kurtosis": -0.598098280378573,
+            "entropy": 1.8828560636920488,
+            "normalized_entropy": 0.9414280318460244,
+            "reliable_kurtosis": true
+          },
+          "conv2.weight": {
+            "n": 1152,
+            "mean": -0.006743461154352796,
+            "std": 0.09243976782273508,
+            "skewness": -0.04486400577148775,
+            "kurtosis": -0.47587768529575136,
+            "entropy": 4.605543537225954,
+            "normalized_entropy": 0.9130023206457325,
+            "reliable_kurtosis": true
+          },
+          "conv3.bias": {
+            "n": 24,
+            "mean": -0.00960537776700221,
+            "std": 0.05066919733893013,
+            "skewness": 0.21639142075928952,
+            "kurtosis": -1.1193026906477244,
+            "entropy": 1.864786979256811,
+            "normalized_entropy": 0.9323934896284055,
+            "reliable_kurtosis": true
+          },
+          "conv3.weight": {
+            "n": 3456,
+            "mean": -0.00010938564175662409,
+            "std": 0.07612752002265186,
+            "skewness": -0.007831851077354401,
+            "kurtosis": -0.18185679067813876,
+            "entropy": 5.096920721145967,
+            "normalized_entropy": 0.8700814709684747,
+            "reliable_kurtosis": true
+          },
+          "conv4.bias": {
+            "n": 32,
+            "mean": -0.008662819818709977,
+            "std": 0.03540255861867024,
+            "skewness": -0.012277433532619897,
+            "kurtosis": -0.6831443694618984,
+            "entropy": 2.1582594697016404,
+            "normalized_entropy": 0.9295117598404091,
+            "reliable_kurtosis": true
+          },
+          "conv4.weight": {
+            "n": 6912,
+            "mean": 0.003436244051053213,
+            "std": 0.06381686602820653,
+            "skewness": 0.08609935118760408,
+            "kurtosis": 0.14607799586569437,
+            "entropy": 5.1013690182513765,
+            "normalized_entropy": 0.8502281697085627,
+            "reliable_kurtosis": true
+          },
+          "fc1.bias": {
+            "n": 64,
+            "mean": -0.002504458898329176,
+            "std": 0.0715372868991195,
+            "skewness": -0.21988935535840415,
+            "kurtosis": -0.6279182014992486,
+            "entropy": 2.742307660894414,
+            "normalized_entropy": 0.9141025536314714,
+            "reliable_kurtosis": true
+          },
+          "fc1.weight": {
+            "n": 8192,
+            "mean": 0.00818199060465652,
+            "std": 0.08453962149028661,
+            "skewness": 0.1556495699327482,
+            "kurtosis": -0.4825259096791079,
+            "entropy": 5.434293691951643,
+            "normalized_entropy": 0.9057156153252738,
+            "reliable_kurtosis": true
+          },
+          "fc2.bias": {
+            "n": 32,
+            "mean": -0.005175547586986795,
+            "std": 0.08960246219310125,
+            "skewness": -0.32833486313047866,
+            "kurtosis": -0.4459909042332728,
+            "entropy": 2.0703560636920493,
+            "normalized_entropy": 0.8916538234972704,
+            "reliable_kurtosis": true
+          },
+          "fc2.weight": {
+            "n": 2048,
+            "mean": 0.01148733436484406,
+            "std": 0.10151121388951358,
+            "skewness": 0.13050215573610408,
+            "kurtosis": -0.569224374634814,
+            "entropy": 5.053977974489283,
+            "normalized_entropy": 0.9202682383960646,
+            "reliable_kurtosis": true
+          },
+          "fc3.bias": {
+            "n": 4,
+            "mean": 0.029949855525046587,
+            "std": 0.11344396031847713,
+            "skewness": -0.3357561740037054,
+            "kurtosis": -1.5484647666289217,
+            "entropy": 1.5,
+            "normalized_entropy": 0.75,
+            "reliable_kurtosis": true
+          },
+          "fc3.weight": {
+            "n": 128,
+            "mean": -0.002218423769591027,
+            "std": 0.15002360922515495,
+            "skewness": -0.07968340770457086,
+            "kurtosis": -0.981537880321314,
+            "entropy": 3.4303927801937606,
+            "normalized_entropy": 0.9916058932088458,
+            "reliable_kurtosis": true
+          }
+        }
+      }
+    },
+    "stego": {
+      "model_path": "tests/fixtures/benchmark/steganographic.safetensors",
+      "passed": false,
+      "max_severity": "medium",
+      "findings": [
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.500, p=0.4795001221869535, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn1.bias",
+            "statistic": 0.5,
+            "p_value": 0.4795001221869535,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "insufficient data",
+          "details": {
+            "layer_name": "bn1.bias",
+            "statistic": 0.0,
+            "p_value": null
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=14, expected=16.8, z=-1.005, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn1.bias",
+            "statistic": -1.0045631695864299,
+            "p_value": 0.31510723938302637,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.1483 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.bias",
+            "statistic": 0.14831041055276872,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0860 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.bias",
+            "statistic": -0.08597285067873302,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.2775 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.bias",
+            "statistic": 0.27754778174292477,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1768 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.bias",
+            "statistic": -0.1767766952966369,
+            "p_value": null
+          }
+        },
+        {
+          "check": "dtype_support",
+          "severity": "info",
+          "passed": true,
+          "message": "dtype int64 not supported for mantissa extraction (only float32/float16); layer skipped.",
+          "details": {
+            "layer_name": "bn1.num_batches_tracked",
+            "dtype": "int64"
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=1.125, p=0.28884436634648497, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn1.running_mean",
+            "statistic": 1.125,
+            "p_value": 0.28884436634648497,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "insufficient data",
+          "details": {
+            "layer_name": "bn1.running_mean",
+            "statistic": 0.0,
+            "p_value": null
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=14, expected=16.4, z=-0.909, FDR q=0.8976 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn1.running_mean",
+            "statistic": -0.9090567320985065,
+            "p_value": 0.36332018020514284,
+            "fdr_p_value": 0.8976145628597646
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.1299 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.running_mean",
+            "statistic": 0.1298810833665328,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.1667 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.running_mean",
+            "statistic": 0.1666666666666667,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.3443 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.running_mean",
+            "statistic": -0.34426518632954806,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0216 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.running_mean",
+            "statistic": -0.021591675854376553,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.500, p=0.4795001221869535, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn1.running_var",
+            "statistic": 0.5,
+            "p_value": 0.4795001221869535,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "insufficient data",
+          "details": {
+            "layer_name": "bn1.running_var",
+            "statistic": 0.0,
+            "p_value": null
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=16, expected=16.8, z=-0.274, FDR q=0.9235 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn1.running_var",
+            "statistic": -0.2739717735235718,
+            "p_value": 0.7841063134711534,
+            "fdr_p_value": 0.9235251682913537
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0169 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.running_var",
+            "statistic": 0.016949761206030693,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0818 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.running_var",
+            "statistic": -0.08183170883849716,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0157 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.running_var",
+            "statistic": -0.015710251796769343,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.3287 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.running_var",
+            "statistic": 0.32867132867132864,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.125, p=0.7236736098317631, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn1.weight",
+            "statistic": 0.125,
+            "p_value": 0.7236736098317631,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "insufficient data",
+          "details": {
+            "layer_name": "bn1.weight",
+            "statistic": 0.0,
+            "p_value": null
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=13, expected=16.9, z=-1.421, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn1.weight",
+            "statistic": -1.4208634924714787,
+            "p_value": 0.15535644808081445,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.2250 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.weight",
+            "statistic": 0.22499999999999995,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0000 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.weight",
+            "statistic": 0.0,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.2887 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.weight",
+            "statistic": -0.2886751345948128,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.5000 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn1.weight",
+            "statistic": 0.4999999999999999,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.062, p=0.8025873486341526, FDR q=0.9235 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn2.bias",
+            "statistic": 0.0625,
+            "p_value": 0.8025873486341526,
+            "fdr_p_value": 0.9235251682913537
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.508, p=0.7756667801338624, FDR q=0.9235 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn2.bias",
+            "statistic": 0.5080645161290323,
+            "p_value": 0.7756667801338624,
+            "fdr_p_value": 0.9235251682913537
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=31, expected=33.0, z=-0.497, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn2.bias",
+            "statistic": -0.4966336931460246,
+            "p_value": 0.6194473887402856,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0474 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.bias",
+            "statistic": 0.0473790322580645,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1291 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.bias",
+            "statistic": -0.12909944487358055,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.1025 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.bias",
+            "statistic": 0.10250710695364046,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.1432 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.bias",
+            "statistic": 0.14322297480788654,
+            "p_value": null
+          }
+        },
+        {
+          "check": "dtype_support",
+          "severity": "info",
+          "passed": true,
+          "message": "dtype int64 not supported for mantissa extraction (only float32/float16); layer skipped.",
+          "details": {
+            "layer_name": "bn2.num_batches_tracked",
+            "dtype": "int64"
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.562, p=0.4532547047537364, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn2.running_mean",
+            "statistic": 0.5625,
+            "p_value": 0.4532547047537364,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=2.443, p=0.29480871065456316, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn2.running_mean",
+            "statistic": 2.442857142857143,
+            "p_value": 0.29480871065456316,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=33, expected=32.7, z=0.072, FDR q=1 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn2.running_mean",
+            "statistic": 0.07151596515834456,
+            "p_value": 0.9429871187327507,
+            "fdr_p_value": 1.0
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0286 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.running_mean",
+            "statistic": -0.028571428571428525,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0780 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.running_mean",
+            "statistic": -0.07801845420234174,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0473 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.running_mean",
+            "statistic": -0.04732431166836546,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0103 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.running_mean",
+            "statistic": -0.010336227882434048,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=3.062, p=0.08011831372763416, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn2.running_var",
+            "statistic": 3.0625,
+            "p_value": 0.08011831372763416,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=2.827, p=0.24329963279515954, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn2.running_var",
+            "statistic": 2.8269230769230766,
+            "p_value": 0.24329963279515954,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=35, expected=31.5, z=0.935, FDR q=0.8899 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn2.running_var",
+            "statistic": 0.9353853506121504,
+            "p_value": 0.34958974374389956,
+            "fdr_p_value": 0.8898648022571989
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1442 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.running_var",
+            "statistic": -0.14423076923076922,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0752 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.running_var",
+            "statistic": 0.07518224189769213,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.2105 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.running_var",
+            "statistic": 0.2105263157894737,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0385 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.running_var",
+            "statistic": 0.03849001794597504,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.000, p=1.0, FDR q=1 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn2.weight",
+            "statistic": 0.0,
+            "p_value": 1.0,
+            "fdr_p_value": 1.0
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.889, p=0.6411085756520235, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn2.weight",
+            "statistic": 0.8891129032258065,
+            "p_value": 0.6411085756520235,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=32, expected=33.0, z=-0.252, FDR q=0.9235 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn2.weight",
+            "statistic": -0.25200806438709267,
+            "p_value": 0.8010348304548711,
+            "fdr_p_value": 0.9235251682913537
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0161 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.weight",
+            "statistic": 0.016129032258064523,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0979 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.weight",
+            "statistic": 0.09791666666666665,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0011 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.weight",
+            "statistic": 0.0011123470522803331,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1072 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn2.weight",
+            "statistic": -0.10721125348377948,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.375, p=0.54029137460742, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn3.bias",
+            "statistic": 0.375,
+            "p_value": 0.54029137460742,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.125, p=0.9886121346624381, FDR q=1 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn3.bias",
+            "statistic": 0.12549019607843137,
+            "p_value": 0.9886121346624381,
+            "fdr_p_value": 1.0
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=55, expected=48.8, z=1.275, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn3.bias",
+            "statistic": 1.2747510278439014,
+            "p_value": 0.20239737930019933,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1400 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.bias",
+            "statistic": -0.13999999999999999,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1937 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.bias",
+            "statistic": -0.1936507936507936,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0019 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.bias",
+            "statistic": -0.0018939393939393975,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0476 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.bias",
+            "statistic": -0.04761904761904759,
+            "p_value": null
+          }
+        },
+        {
+          "check": "dtype_support",
+          "severity": "info",
+          "passed": true,
+          "message": "dtype int64 not supported for mantissa extraction (only float32/float16); layer skipped.",
+          "details": {
+            "layer_name": "bn3.num_batches_tracked",
+            "dtype": "int64"
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.000, p=1.0, FDR q=1 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn3.running_mean",
+            "statistic": 0.0,
+            "p_value": 1.0,
+            "fdr_p_value": 1.0
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=3.667, p=0.2997805885957121, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn3.running_mean",
+            "statistic": 3.666666666666666,
+            "p_value": 0.2997805885957121,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=45, expected=49.0, z=-0.821, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn3.running_mean",
+            "statistic": -0.8208281581721152,
+            "p_value": 0.41174415711266704,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0736 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.running_mean",
+            "statistic": 0.07358156028368792,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1920 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.running_mean",
+            "statistic": -0.1920289855072464,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0435 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.running_mean",
+            "statistic": 0.04351941398892446,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.1137 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.running_mean",
+            "statistic": 0.11366572324507893,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=6.000, p=0.014305878435429659, FDR q=0.4514 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn3.running_var",
+            "statistic": 6.0,
+            "p_value": 0.014305878435429659,
+            "fdr_p_value": 0.4513933089705116
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=2.489, p=0.4773024570398189, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn3.running_var",
+            "statistic": 2.488888888888889,
+            "p_value": 0.4773024570398189,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=52, expected=46.0, z=1.314, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn3.running_var",
+            "statistic": 1.3142574813455419,
+            "p_value": 0.1887595705411256,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1468 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.running_var",
+            "statistic": -0.1467826723461768,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0441 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.running_var",
+            "statistic": 0.044067796610169484,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0092 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.running_var",
+            "statistic": -0.009186203754237036,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0799 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.running_var",
+            "statistic": -0.07985083244631432,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=1.042, p=0.30743416592739536, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn3.weight",
+            "statistic": 1.0416666666666667,
+            "p_value": 0.30743416592739536,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=6.192, p=0.10262511683494971, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn3.weight",
+            "statistic": 6.19218955682317,
+            "p_value": 0.10262511683494971,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=47, expected=48.5, z=-0.307, FDR q=0.9235 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn3.weight",
+            "statistic": -0.30690092940476055,
+            "p_value": 0.7589187816278018,
+            "fdr_p_value": 0.9235251682913537
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0228 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.weight",
+            "statistic": 0.022808586762075145,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0141 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.weight",
+            "statistic": 0.014135886912904697,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0315 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.weight",
+            "statistic": -0.03149613561567593,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0291 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn3.weight",
+            "statistic": -0.02911364320594479,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.125, p=0.7236736098317631, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn4.bias",
+            "statistic": 0.125,
+            "p_value": 0.7236736098317631,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=3.591, p=0.6096770441449286, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn4.bias",
+            "statistic": 3.590920554854981,
+            "p_value": 0.6096770441449286,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=71, expected=64.9, z=1.077, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn4.bias",
+            "statistic": 1.0770132409599227,
+            "p_value": 0.2814743503342459,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1041 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.bias",
+            "statistic": -0.10407352210630898,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0149 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.bias",
+            "statistic": 0.014880201765447703,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0167 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.bias",
+            "statistic": -0.016660160062215434,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0167 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.bias",
+            "statistic": 0.01668753914405863,
+            "p_value": null
+          }
+        },
+        {
+          "check": "dtype_support",
+          "severity": "info",
+          "passed": true,
+          "message": "dtype int64 not supported for mantissa extraction (only float32/float16); layer skipped.",
+          "details": {
+            "layer_name": "bn4.num_batches_tracked",
+            "dtype": "int64"
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.125, p=0.7236736098317631, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn4.running_mean",
+            "statistic": 0.125,
+            "p_value": 0.7236736098317631,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=11.836, p=0.03710009046269806, FDR q=0.7791 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn4.running_mean",
+            "statistic": 11.836363636363636,
+            "p_value": 0.03710009046269806,
+            "fdr_p_value": 0.7791018997166593
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=57, expected=64.9, z=-1.410, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn4.running_mean",
+            "statistic": -1.4101101196073216,
+            "p_value": 0.15850716964287534,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.1167 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.running_mean",
+            "statistic": 0.11674118231495285,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0773 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.running_mean",
+            "statistic": 0.07727272727272724,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0840 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.running_mean",
+            "statistic": -0.08404022819938649,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0803 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.running_mean",
+            "statistic": 0.08027878384985951,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=1.125, p=0.28884436634648497, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn4.running_var",
+            "statistic": 1.125,
+            "p_value": 0.28884436634648497,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=2.186, p=0.822896752748016, FDR q=0.9265 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn4.running_var",
+            "statistic": 2.185714285714286,
+            "p_value": 0.822896752748016,
+            "fdr_p_value": 0.9264940112685449
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "medium",
+          "passed": false,
+          "message": "runs=86, expected=64.4, z=3.861, FDR q=0.009484 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn4.running_var",
+            "statistic": 3.8610479072621855,
+            "p_value": 0.00011290176142656192,
+            "fdr_p_value": 0.009483747959831201
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.3506 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.running_var",
+            "statistic": -0.3506009958169808,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0392 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.running_var",
+            "statistic": 0.03916600131784206,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0084 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.running_var",
+            "statistic": 0.008391250368733786,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1748 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.running_var",
+            "statistic": -0.1748251748251749,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.125, p=0.7236736098317631, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn4.weight",
+            "statistic": 0.125,
+            "p_value": 0.7236736098317631,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.540, p=0.990576200514716, FDR q=1 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn4.weight",
+            "statistic": 0.5402269861286255,
+            "p_value": 0.990576200514716,
+            "fdr_p_value": 1.0
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=67, expected=64.9, z=0.366, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "bn4.weight",
+            "statistic": 0.36640656651213865,
+            "p_value": 0.7140617205658242,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0410 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.weight",
+            "statistic": -0.04098360655737702,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.1102 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.weight",
+            "statistic": 0.11021437578814627,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.2439 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.weight",
+            "statistic": -0.24390884654667366,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0484 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "bn4.weight",
+            "statistic": 0.04842077142283374,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.000, p=1.0, FDR q=1 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv1.bias",
+            "statistic": 0.0,
+            "p_value": 1.0,
+            "fdr_p_value": 1.0
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "insufficient data",
+          "details": {
+            "layer_name": "conv1.bias",
+            "statistic": 0.0,
+            "p_value": null
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=16, expected=17.0, z=-0.359, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv1.bias",
+            "statistic": -0.35939764421413045,
+            "p_value": 0.7192976368134828,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0333 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv1.bias",
+            "statistic": 0.03333333333333331,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1964 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv1.bias",
+            "statistic": -0.1964285714285714,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1385 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv1.bias",
+            "statistic": -0.13846153846153844,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1511 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv1.bias",
+            "statistic": -0.15114173098063569,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.500, p=0.4795001221869535, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv1.weight",
+            "statistic": 0.5,
+            "p_value": 0.4795001221869535,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=7.109, p=0.8964511093778725, FDR q=0.9733 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv1.weight",
+            "statistic": 7.1089271089271096,
+            "p_value": 0.8964511093778725,
+            "fdr_p_value": 0.9732900434615189
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=141, expected=144.8, z=-0.443, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv1.weight",
+            "statistic": -0.4434863231090004,
+            "p_value": 0.6574140097041627,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0224 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv1.weight",
+            "statistic": 0.022384428223844264,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0021 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv1.weight",
+            "statistic": -0.0020581678450805026,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1146 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv1.weight",
+            "statistic": -0.11462216972405813,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0624 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv1.weight",
+            "statistic": 0.062386571887341785,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=2.250, p=0.13361440253771617, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv2.bias",
+            "statistic": 2.25,
+            "p_value": 0.13361440253771617,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=2.489, p=0.28814750947750023, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv2.bias",
+            "statistic": 2.488565488565489,
+            "p_value": 0.28814750947750023,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=34, expected=31.9, z=0.555, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv2.bias",
+            "statistic": 0.5553563845298105,
+            "p_value": 0.5786509191199232,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0868 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv2.bias",
+            "statistic": -0.08682179365696913,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0322 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv2.bias",
+            "statistic": -0.03224129401095804,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1796 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv2.bias",
+            "statistic": -0.17962339129229613,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.1460 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv2.bias",
+            "statistic": 0.14598929061844595,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=1.253, p=0.26289033641984744, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv2.weight",
+            "statistic": 1.2534722222222223,
+            "p_value": 0.26289033641984744,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=18.113, p=0.256793896668313, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv2.weight",
+            "statistic": 18.11256588502822,
+            "p_value": 0.256793896668313,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=2295, expected=2304.4, z=-0.276, FDR q=0.9235 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv2.weight",
+            "statistic": -0.2762675795297927,
+            "p_value": 0.7823425550319475,
+            "fdr_p_value": 0.9235251682913537
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0039 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv2.weight",
+            "statistic": 0.003860157377242003,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0084 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv2.weight",
+            "statistic": 0.008421465552853986,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0150 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv2.weight",
+            "statistic": -0.015046359215970502,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0242 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv2.weight",
+            "statistic": -0.0241999766481611,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.042, p=0.8382564863858264, FDR q=0.9265 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv3.bias",
+            "statistic": 0.041666666666666664,
+            "p_value": 0.8382564863858264,
+            "fdr_p_value": 0.9264940112685449
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=2.126, p=0.5466862508907893, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv3.bias",
+            "statistic": 2.125922709509336,
+            "p_value": 0.5466862508907893,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=46, expected=49.0, z=-0.612, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv3.bias",
+            "statistic": -0.6116142535705553,
+            "p_value": 0.5407930053783456,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0523 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv3.bias",
+            "statistic": 0.0523281647905534,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1069 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv3.bias",
+            "statistic": -0.10688405797101451,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0000 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv3.bias",
+            "statistic": 0.0,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.1603 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv3.bias",
+            "statistic": 0.1603310541960484,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.042, p=0.8382564863858264, FDR q=0.9265 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv3.weight",
+            "statistic": 0.041666666666666664,
+            "p_value": 0.8382564863858264,
+            "fdr_p_value": 0.9264940112685449
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=18.431, p=0.24070395387490662, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv3.weight",
+            "statistic": 18.430611106924875,
+            "p_value": 0.24070395387490662,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=6938, expected=6913.0, z=0.426, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv3.weight",
+            "statistic": 0.42562969701033776,
+            "p_value": 0.6703776973082133,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0037 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv3.weight",
+            "statistic": -0.0036925234371102227,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0009 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv3.weight",
+            "statistic": -0.0008709472845641384,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0041 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv3.weight",
+            "statistic": -0.004055105606093999,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0078 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv3.weight",
+            "statistic": 0.007814029746657195,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=1.125, p=0.28884436634648497, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv4.bias",
+            "statistic": 1.125,
+            "p_value": 0.28884436634648497,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=6.055, p=0.30091160168397735, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv4.bias",
+            "statistic": 6.05491990846682,
+            "p_value": 0.30091160168397735,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=68, expected=64.4, z=0.638, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv4.bias",
+            "statistic": 0.6379122629389697,
+            "p_value": 0.5235307946465462,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0646 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv4.bias",
+            "statistic": -0.06456463734531122,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0069 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv4.bias",
+            "statistic": 0.006864988558352395,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0095 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv4.bias",
+            "statistic": -0.009453781512605028,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0762 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv4.bias",
+            "statistic": 0.07624468375105051,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.669, p=0.41340693442820536, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv4.weight",
+            "statistic": 0.6689814814814815,
+            "p_value": 0.41340693442820536,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=8.465, p=0.9037693260714105, FDR q=0.9733 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv4.weight",
+            "statistic": 8.465482611801907,
+            "p_value": 0.9037693260714105,
+            "fdr_p_value": 0.9732900434615189
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=13893, expected=13824.7, z=0.822, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "conv4.weight",
+            "statistic": 0.821970934346454,
+            "p_value": 0.4110934394540568,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0050 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv4.weight",
+            "statistic": -0.004980007270083557,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0081 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv4.weight",
+            "statistic": 0.00807808058984559,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0018 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv4.weight",
+            "statistic": -0.0018333150944196018,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0065 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "conv4.weight",
+            "statistic": 0.0064875350388513215,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.391, p=0.5319710580974011, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc1.bias",
+            "statistic": 0.390625,
+            "p_value": 0.5319710580974011,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=14.509, p=0.20609151644607057, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc1.bias",
+            "statistic": 14.509090909090908,
+            "p_value": 0.20609151644607057,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=125, expected=128.8, z=-0.477, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc1.bias",
+            "statistic": -0.4772523069311191,
+            "p_value": 0.6331824680855356,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0256 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc1.bias",
+            "statistic": 0.02563786515469001,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0334 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc1.bias",
+            "statistic": -0.033419264614613385,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0212 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc1.bias",
+            "statistic": 0.02122083104258434,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0862 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc1.bias",
+            "statistic": 0.08621646191545525,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=2.063, p=0.1509139651111125, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc1.weight",
+            "statistic": 2.06298828125,
+            "p_value": 0.1509139651111125,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=13.012, p=0.6013671855513458, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc1.weight",
+            "statistic": 13.01204967364477,
+            "p_value": 0.6013671855513458,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=16337, expected=16384.0, z=-0.519, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc1.weight",
+            "statistic": -0.5189741710382578,
+            "p_value": 0.603778753125722,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0028 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc1.weight",
+            "statistic": 0.002835991836455551,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0008 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc1.weight",
+            "statistic": -0.0007959665251637401,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0009 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc1.weight",
+            "statistic": -0.0008570654744962745,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0051 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc1.weight",
+            "statistic": -0.005070390246924826,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=1.125, p=0.28884436634648497, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc2.bias",
+            "statistic": 1.125,
+            "p_value": 0.28884436634648497,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=10.284, p=0.06758306227986746, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc2.bias",
+            "statistic": 10.2837528604119,
+            "p_value": 0.06758306227986746,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=51, expected=64.4, z=-2.406, FDR q=0.4514 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc2.bias",
+            "statistic": -2.406160290032956,
+            "p_value": 0.0161211896060897,
+            "fdr_p_value": 0.4513933089705116
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.2066 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc2.bias",
+            "statistic": 0.20664667666166917,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=0.1030 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc2.bias",
+            "statistic": 0.10297482837528603,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0524 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc2.bias",
+            "statistic": 0.05243741765480896,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0388 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc2.bias",
+            "statistic": 0.038791350765817,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=1.586, p=0.2078375341308688, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc2.weight",
+            "statistic": 1.58642578125,
+            "p_value": 0.2078375341308688,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=15.096, p=0.44451125198952834, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc2.weight",
+            "statistic": 15.09618517790097,
+            "p_value": 0.44451125198952834,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=4131, expected=4096.2, z=0.769, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc2.weight",
+            "statistic": 0.7690245288044147,
+            "p_value": 0.4418787492401067,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0086 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc2.weight",
+            "statistic": -0.008615839018509824,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0074 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc2.weight",
+            "statistic": 0.007377886952563393,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0102 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc2.weight",
+            "statistic": -0.010207043729088306,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0056 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc2.weight",
+            "statistic": -0.005571459419164045,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.250, p=0.6170750774519739, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc3.bias",
+            "statistic": 0.25,
+            "p_value": 0.6170750774519739,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "insufficient data",
+          "details": {
+            "layer_name": "fc3.bias",
+            "statistic": 0.0,
+            "p_value": null
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=8, expected=8.9, z=-0.461, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc3.bias",
+            "statistic": -0.4605661864718383,
+            "p_value": 0.6451098757847721,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0546 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc3.bias",
+            "statistic": 0.05455447255899812,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.3443 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc3.bias",
+            "statistic": -0.3442651863295482,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.3714 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc3.bias",
+            "statistic": -0.37142857142857144,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "low",
+          "passed": true,
+          "message": "corr=-0.1491 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc3.bias",
+            "statistic": -0.14907119849998599,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_balance_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=0.125, p=0.7236736098317631, FDR q=0.9073 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc3.weight",
+            "statistic": 0.125,
+            "p_value": 0.7236736098317631,
+            "fdr_p_value": 0.9072922869532553
+          }
+        },
+        {
+          "check": "block_homogeneity_chi_square",
+          "severity": "info",
+          "passed": true,
+          "message": "chi2=18.379, p=0.2432405497379715, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc3.weight",
+            "statistic": 18.379487179487178,
+            "p_value": 0.2432405497379715,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "wald_wolfowitz_runs",
+          "severity": "info",
+          "passed": true,
+          "message": "runs=271, expected=256.9, z=1.244, FDR q=0.8272 (BH over 84 tests)",
+          "details": {
+            "layer_name": "fc3.weight",
+            "statistic": 1.2444835561299064,
+            "p_value": 0.213321647690143,
+            "fdr_p_value": 0.8271565033804442
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag1",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0571 at lag 1 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc3.weight",
+            "statistic": -0.0570793748084585,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag2",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0200 at lag 2 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc3.weight",
+            "statistic": -0.020000000000000014,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag4",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=0.0507 at lag 4 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc3.weight",
+            "statistic": 0.05074008904173854,
+            "p_value": null
+          }
+        },
+        {
+          "check": "bit_autocorrelation_lag8",
+          "severity": "info",
+          "passed": true,
+          "message": "corr=-0.0521 at lag 8 (no permutation-test p-value yet \u2014 informational only)",
+          "details": {
+            "layer_name": "fc3.weight",
+            "statistic": -0.05208472846796202,
+            "p_value": null
+          }
+        }
+      ],
+      "metadata": {
+        "n_bits": 4,
+        "layers_analyzed": 30,
+        "layers_skipped": 4,
+        "fdr_correction": "benjamini_hochberg",
+        "n_tests_corrected": 84,
+        "init_lattice_aware": true,
+        "n_layers_lattice_aware": 14
+      }
+    },
+    "behavioral": {
+      "model_path": "tests/fixtures/benchmark/steganographic.safetensors",
+      "mode": "probed",
+      "passed": true,
+      "max_severity": "info",
+      "findings": [
+        {
+          "check": "behavioral_baseline_concentration",
+          "severity": "info",
+          "passed": true,
+          "message": "Unpatched carriers: class 1 got 37.50% of predictions (uniform would be 25.00%). Cheap, low-confidence signal -- OOD noise commonly collapses toward one class on any classifier, backdoored or not; never elevated past LOW on its own.",
+          "details": {
+            "baseline_hit_rate": 0.375,
+            "majority_class": 1,
+            "n_carriers": 64
+          }
+        },
+        {
+          "check": "behavioral_class_asymmetry",
+          "severity": "info",
+          "passed": true,
+          "message": "color=+3sigma: class reach [4, 4, 4, 4] over 16 non-overlapping positions (chi2=0.00, p=1, BH q=1); most-reached class 0. Assumes bright patches reach classes uniformly on a clean model -- true for the benchmark task, not in general.",
+          "details": {
+            "kind": "box",
+            "size": 4,
+            "color": 3.0,
+            "reach": [
+              4,
+              4,
+              4,
+              4
+            ],
+            "n_positions": 16,
+            "chi2": 0.0,
+            "p_value": 1.0,
+            "over_represented_class": 0,
+            "under_represented_class": 0,
+            "fdr_p_value": 1.0
+          }
+        },
+        {
+          "check": "behavioral_class_asymmetry",
+          "severity": "info",
+          "passed": true,
+          "message": "color=+6sigma: class reach [4, 4, 4, 4] over 16 non-overlapping positions (chi2=0.00, p=1, BH q=1); most-reached class 0. Assumes bright patches reach classes uniformly on a clean model -- true for the benchmark task, not in general.",
+          "details": {
+            "kind": "box",
+            "size": 4,
+            "color": 6.0,
+            "reach": [
+              4,
+              4,
+              4,
+              4
+            ],
+            "n_positions": 16,
+            "chi2": 0.0,
+            "p_value": 1.0,
+            "over_represented_class": 0,
+            "under_represented_class": 0,
+            "fdr_p_value": 1.0
+          }
+        },
+        {
+          "check": "behavioral_coverage",
+          "severity": "info",
+          "passed": true,
+          "message": "Probed 64 carriers with 98 island candidates and 2 class-asymmetry tests across 1 patch size(s) x 2 color(s) (99 forward batches). BH per family: island 0 HIGH / 0 MEDIUM; asymmetry 0 HIGH / 0 MEDIUM. Report-wide FDR is bounded by the sum of the per-family levels.",
+          "details": {
+            "n_carriers": 64,
+            "n_candidates_tested": 98,
+            "n_island_reported": 0,
+            "n_asymmetry_tests": 2,
+            "n_forward_batches": 99,
+            "severity_counts": {
+              "island": {
+                "high": 0,
+                "medium": 0
+              },
+              "asymmetry": {
+                "high": 0,
+                "medium": 0
+              }
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "input_shape": [
+          1,
+          16,
+          16
+        ],
+        "num_classes": 4,
+        "n_carriers": 64,
+        "n_candidates_tested": 98,
+        "n_asymmetry_tests": 2,
+        "n_forward_batches": 99,
+        "patch_colors_sigma": [
+          3.0,
+          6.0
+        ],
+        "fdr": "benjamini_hochberg_per_family",
+        "seed": 0
+      }
+    },
+    "risk_score": {
+      "model_path": "tests/fixtures/benchmark/steganographic.safetensors",
+      "overall_score": 0.4497983094778287,
+      "pillars": {
+        "statistical": {
+          "name": "statistical",
+          "status": "ran_clean",
+          "score": 0.0,
+          "weight": 0.0,
+          "summary": "No MEDIUM+ statistical outliers.",
+          "flags": []
+        },
+        "steganographic": {
+          "name": "steganographic",
+          "status": "flagged",
+          "score": 0.4497983094778287,
+          "weight": 1.0,
+          "summary": "1 MEDIUM+ flag(s); strongest: bn4.running_var wald_wolfowitz_runs (medium)",
+          "flags": [
+            {
+              "layer_name": "bn4.running_var",
+              "flag_type": "wald_wolfowitz_runs",
+              "severity": "medium",
+              "score": 0.4497983094778287,
+              "message": "runs=86, expected=64.4, z=3.861, FDR q=0.009484 (BH over 84 tests)",
+              "details": {
+                "statistic": 3.8610479072621855,
+                "p_value": 0.00011290176142656192,
+                "fdr_p_value": 0.009483747959831201
+              }
+            }
+          ]
+        },
+        "behavioral": {
+          "name": "behavioral",
+          "status": "ran_clean",
+          "score": 0.0,
+          "weight": 1.0,
+          "summary": "Probed; no island or class-asymmetry finding at MEDIUM+.",
+          "flags": []
+        }
+      },
+      "layer_flags": [
+        {
+          "layer_name": "bn4.running_var",
+          "flag_type": "wald_wolfowitz_runs",
+          "severity": "medium",
+          "score": 0.4497983094778287,
+          "message": "runs=86, expected=64.4, z=3.861, FDR q=0.009484 (BH over 84 tests)",
+          "details": {
+            "statistic": 3.8610479072621855,
+            "p_value": 0.00011290176142656192,
+            "fdr_p_value": 0.009483747959831201
+          }
+        }
+      ],
+      "explanation": {
+        "text": "Risk MEDIUM (score 0.45) driven by the steganographic pillar: 1 MEDIUM+ flag(s); strongest: bn4.running_var wald_wolfowitz_runs (medium).",
+        "feature_attributions": {
+          "statistical": 0.0,
+          "steganographic": 0.4497983094778287,
+          "behavioral": 0.0
+        }
+      },
+      "metadata": {
+        "fusion": "max_over_weighted_pillars_run",
+        "risk_level": "medium",
+        "pillar_weights": {
+          "statistical": 0.0,
+          "steganographic": 1.0,
+          "behavioral": 1.0
+        },
+        "report_only_pillars": [
+          "statistical"
+        ],
+        "pillars_run": [
+          "statistical",
+          "steganographic",
+          "behavioral"
+        ],
+        "pillars_not_run": [],
+        "layer_risk": {
+          "bn4.running_var": 0.4497983094778287
+        }
+      }
+    }
+  }
+}

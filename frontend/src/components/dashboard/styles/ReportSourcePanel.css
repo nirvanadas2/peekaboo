@@ -1,0 +1,108 @@
+.report-source {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.report-source-drop {
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  padding: 28px 24px;
+  text-align: center;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.report-source-drop:hover,
+.report-source-drop:focus-visible {
+  border-color: var(--accent);
+  background: rgba(79, 216, 255, 0.04);
+  outline: none;
+}
+
+.report-source-drop.is-dragover {
+  border-color: var(--accent);
+  background: rgba(79, 216, 255, 0.08);
+}
+
+.report-source-drop-label {
+  display: block;
+  font-size: 17px;
+  color: #d6d9df;
+  margin-bottom: 6px;
+}
+
+.report-source-drop-hint {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #7d828c;
+}
+
+.report-source-input {
+  display: none;
+}
+
+.report-source-demo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.report-source-demo-label {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #7d828c;
+}
+
+.report-source-demo-select {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: #d6d9df;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.report-source-demo-select:hover,
+.report-source-demo-select:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.report-source-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: #b8bcc4;
+}
+
+.report-source-clear {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #9aa0aa;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+.report-source-clear:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.report-source-error {
+  margin: 0;
+  font-size: 14px;
+  color: var(--severity-high);
+}

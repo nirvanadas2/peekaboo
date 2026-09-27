@@ -19,7 +19,8 @@
   -moz-user-select: none;
 
   /* Peekaboo dark theme. Semantic severity colors (danger/warning/safe)
-     are reserved for the dashboard and intentionally absent here. */
+     are reserved for the dashboard and intentionally absent from the
+     landing page's own components. */
   --accent: #4fd8ff;
   --accent-glow: rgba(79, 216, 255, 0.45);
   --background: #06070a;
@@ -28,6 +29,20 @@
   --cMaxWidth: 1920px;
   --vh: 100vh;
   --vh: 100svh;
+
+  /* Dashboard-only: maps directly onto peekaboo.schema.model_risk_score.Severity
+     (info/low/medium/high/critical). --severity-not-run is deliberately its
+     own neutral grey, never green/--severity-low -- a PillarStatus.NOT_RUN
+     pillar must never read as "clean" (see PHASE5.md/PHASE6.md). */
+  --severity-critical: #ff4557;
+  --severity-high: #ff8a3d;
+  --severity-medium: #ffcf56;
+  --severity-low: #7dd3fc;
+  --severity-info: #9aa4b2;
+  /* #818794, not the earlier #5b6270 -- that failed the 4.5:1 WCAG text
+     floor (3.29:1 on #06070a) once used for small badge/label text, not
+     just a fill; this clears 5.5:1. */
+  --severity-not-run: #818794;
 }
 
 h1,

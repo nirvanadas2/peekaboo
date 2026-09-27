@@ -1,0 +1,73 @@
+.pipeline-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pipeline-strip-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #d6d9df;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.pipeline-strip-chip:hover:not(:disabled),
+.pipeline-strip-chip:focus-visible:not(:disabled) {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.pipeline-strip-chip:disabled,
+.pipeline-strip-chip.is-unreached {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.pipeline-strip-tag {
+  color: var(--accent);
+  letter-spacing: 0.5px;
+}
+
+.pipeline-strip-title {
+  color: #eae5ec;
+}
+
+.pipeline-strip-badge {
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #c4c8cf;
+}
+
+.pipeline-strip-chip.st-pass .pipeline-strip-badge {
+  border-color: var(--severity-info);
+  color: var(--severity-info);
+}
+
+.pipeline-strip-chip.st-flag .pipeline-strip-badge {
+  background: var(--severity-high);
+  border-color: var(--severity-high);
+  color: #06070a;
+}
+
+.pipeline-strip-chip.st-fail .pipeline-strip-badge {
+  background: var(--severity-critical);
+  border-color: var(--severity-critical);
+  color: #06070a;
+}
+
+.pipeline-strip-chip.st-na .pipeline-strip-badge {
+  border-style: dashed;
+  border-color: var(--severity-not-run);
+  color: var(--severity-not-run);
+}
