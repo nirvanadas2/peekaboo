@@ -1,0 +1,112 @@
+.detection-results {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 24px;
+}
+
+.detection-results-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #eae5ec;
+}
+
+.detection-results-lede {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: #a7abb5;
+}
+
+.detection-results-table {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.detection-results-head,
+.detection-results-row {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr;
+  align-items: center;
+}
+
+.detection-results-head {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #7d828c;
+}
+
+.detection-results-row {
+  padding: 14px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.detection-results-row.is-limitation {
+  border-left: 2px dashed var(--severity-not-run);
+}
+
+.detection-results-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detection-results-label-main {
+  font-size: 14px;
+  color: #eae5ec;
+}
+
+.detection-results-label-detail {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #7d828c;
+}
+
+.detection-results-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--severity-info);
+}
+
+.detection-results-row.is-limitation .detection-results-value {
+  color: var(--severity-not-run);
+}
+
+.detection-results-value-label {
+  display: none;
+  color: #7d828c;
+}
+
+.detection-results-note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--severity-not-run);
+}
+
+.detection-results-caveat {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  line-height: 1.5;
+  color: #7d828c;
+}
+
+@media screen and (max-width: 640px) {
+  .detection-results-head {
+    display: none;
+  }
+  .detection-results-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .detection-results-value-label {
+    display: inline;
+  }
+}

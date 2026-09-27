@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useReport } from "../hooks/useReport";
 import ReportSourcePanel from "../components/dashboard/ReportSourcePanel";
+import DetectionResults from "../components/dashboard/DetectionResults";
+import CoverageComparison from "../components/dashboard/CoverageComparison";
 import VerdictBanner from "../components/dashboard/VerdictBanner";
 import PipelineStatusStrip from "../components/dashboard/PipelineStatusStrip";
 import PillarCard from "../components/dashboard/PillarCard";
@@ -133,6 +135,13 @@ const Dashboard = () => {
           onDemoSelected={loadDemo}
           onClear={clear}
         />
+
+        {/* Fixed project-level facts (PHASE6.md's validated track record,
+            README.md's file-safety-vs-weight-content framing) -- not
+            derived from whatever report is loaded, so shown regardless of
+            report state, not nested inside ReportView. */}
+        <DetectionResults />
+        <CoverageComparison />
 
         {!report && (
           <p className="dashboard-empty">
