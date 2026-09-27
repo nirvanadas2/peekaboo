@@ -243,6 +243,24 @@
   .character-model::before {
     display: none;
   }
+  /* Above .character-model's z-index: 11 (it's position: fixed and spans
+     the full viewport at this breakpoint) so the hero text stays visible
+     over it instead of being painted over. Set on .hero-container itself,
+     not just its children: GsapScroll.ts's scroll-scrubbed timeline gives
+     .hero-container its own inline `transform` (even at rest, it's an
+     identity translate), and any non-none transform creates a new CSS
+     stacking context -- one that would otherwise trap .hero-intro's own
+     z-index inside it, unable to win against outside siblings like
+     .character-model or .pk-problem (whose GSAP-driven transform gives
+     it a stacking context of its own too). */
+  .hero-container {
+    z-index: 12;
+  }
+  .hero-intro,
+  .hero-info,
+  .hero-cta {
+    z-index: 12;
+  }
   .hero-intro {
     top: 38%;
     left: auto;
@@ -252,11 +270,20 @@
   .hero-info {
     bottom: auto;
     top: 53%;
-    z-index: inherit;
     text-align: left;
     transform: translate(0%, -50%);
-    right: auto;
+    /* An explicit right edge (not auto) so the box's auto width is bounded
+       by the gap between left:66% and here, rather than only by the base
+       rule's max-width:90vw -- at left:66%, 90vw is easily wide enough to
+       run past the viewport's actual right edge. */
+    right: 6%;
     left: 66%;
+  }
+  .hero-tagline {
+    /* The base rule's white-space:nowrap forces this onto one line; at
+       left:66% there often isn't room for that before the viewport edge.
+       Mobile already overrides to normal -- desktop needs the same. */
+    white-space: normal;
   }
 }
 

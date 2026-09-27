@@ -50,8 +50,17 @@ export function setCharTimeline(
     .fromTo(character.rotation, { y: 0 }, { y: 0.7, duration: 1 }, 0)
     .to(camera.position, { z: 22 }, 0)
     .fromTo(".character-model", { x: 0 }, { x: "32%", duration: 1 }, 0)
-    .to(".hero-container", { opacity: 0, duration: 0.4 }, 0)
-    .to(".hero-container", { y: "40%", duration: 0.8 }, 0)
+    // Explicit "from" values (not bare .to()) because invalidateOnRefresh
+    // calls .invalidate() on this timeline, which discards any implicitly
+    // recorded start value and re-captures it from .hero-container's
+    // *current* opacity/y on the next render after a refresh. If that
+    // refresh happens while scrolled past the hero (opacity already
+    // faded to 0), the re-captured "from" locks in near 0 permanently -
+    // scrolling back to the top no longer restores it. See setSplitText()
+    // in splitText.ts, whose refresh-triggered re-splits are one common
+    // source of a mid-scroll refresh.
+    .fromTo(".hero-container", { opacity: 1 }, { opacity: 0, duration: 0.4 }, 0)
+    .fromTo(".hero-container", { y: "0%" }, { y: "40%", duration: 0.8 }, 0)
     .fromTo(".pk-problem", { y: "-50%" }, { y: "0%" }, 0);
 
   // Holds the character in the reserved right-hand column through Problem

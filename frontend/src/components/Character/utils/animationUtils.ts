@@ -12,7 +12,13 @@ const setAnimations = (gltf: GLTF) => {
     const introAction = mixer.clipAction(introClip!);
     introAction.setLoop(THREE.LoopOnce, 1);
     introAction.clampWhenFinished = true;
-    introAction.play();
+    // Not .play()'d here: startIntro() below is the sole intended trigger,
+    // fired once lights are on. Playing it here too raced that call -- if
+    // this early, invisible (lights still off) playthrough hadn't finished
+    // by the time startIntro()'s .reset().play() fired ~2500ms later, the
+    // character would visibly snap mid-motion back to frame 0 right as it
+    // became lit. Depended on frame timing after asset load, hence
+    // intermittent.
     const clipNames = ["key1", "key2", "key5", "key6"];
     clipNames.forEach((name) => {
       const clip = THREE.AnimationClip.findByName(gltf.animations, name);
