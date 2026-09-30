@@ -14,6 +14,9 @@ NOISE_TARGET_LAYERS = ("conv1.weight", "fc1.weight")
 STEGO_TARGET_LAYERS = ("conv3.weight", "fc2.weight")
 STEGO_PAYLOAD = b"PEEKABOO-STEGO-PAYLOAD-v1::this text is hidden in the mantissa bits"
 STEGO_BITS_PER_VALUE = 4
+# Deliberately a layer no other variant touches (noise: conv1/fc1, stego:
+# conv3/fc2), so this variant's Stage 3 signal can't be confused with theirs.
+OUTLIER_TARGET_LAYERS = ("conv4.weight",)
 
 
 def add_gaussian_noise(
@@ -78,5 +81,46 @@ def embed_steganographic_payload(
         "payload_length_bytes": len(payload),
         "payload_sha256": hashlib.sha256(payload).hexdigest(),
         "payload_preview": payload[:32].decode("utf-8", errors="replace"),
+    }
+    return new_state, ground_truth
+
+
+def inflate_layer_tails(
+    state: dict[str, np.ndarray],
+    layer_names: tuple[str, ...] = OUTLIER_TARGET_LAYERS,
+    fraction: float = 0.01,
+    scale: float = 4.0,
+    seed: int = 0,
+) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
+    """Multiply a random `fraction` of each layer's values by `scale`,
+    giving that layer heavy tails (a Stage 3 kurtosis/entropy outlier).
+
+    `scale` must be a power of two: that changes only the float32 exponent,
+    so every mantissa bit -- what Stage 4 tests -- is left untouched, and
+    this variant exercises Stage 3 alone. Returns (new_state, ground_truth)."""
+    mantissa, _ = np.frexp(scale)
+    if scale <= 0 or mantissa != 0.5:
+        raise ValueError(f"scale must be a positive power of two, got {scale}")
+
+    rng = np.random.default_rng(seed)
+    new_state = {k: v.copy() for k, v in state.items()}
+    affected = [name for name in layer_names if name in state]
+    n_scaled: dict[str, int] = {}
+
+    for name in affected:
+        flat = new_state[name].astype(np.float32).ravel()
+        count = int(round(fraction * flat.size))
+        idx = rng.choice(flat.size, size=count, replace=False)
+        flat[idx] *= np.float32(scale)
+        new_state[name] = flat.reshape(state[name].shape)
+        n_scaled[name] = count
+
+    ground_truth = {
+        "tamper_type": "statistical_outlier",
+        "affected_layers": affected,
+        "fraction": fraction,
+        "scale": scale,
+        "values_scaled_per_layer": n_scaled,
+        "seed": seed,
     }
     return new_state, ground_truth

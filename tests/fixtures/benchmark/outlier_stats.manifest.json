@@ -1,0 +1,30 @@
+{
+  "variant": "outlier_stats",
+  "architecture": "cnn",
+  "files": {
+    "safetensors": "outlier_stats.safetensors",
+    "pt": "outlier_stats.pt",
+    "onnx": "outlier_stats.onnx"
+  },
+  "derived_from": "clean.safetensors",
+  "is_tampered": true,
+  "tamper_types": [
+    "statistical_outlier"
+  ],
+  "num_tensors": 34,
+  "total_params": 22464,
+  "tampering": [
+    {
+      "tamper_type": "statistical_outlier",
+      "affected_layers": [
+        "conv4.weight"
+      ],
+      "fraction": 0.01,
+      "scale": 4.0,
+      "values_scaled_per_layer": {
+        "conv4.weight": 69
+      },
+      "seed": 0
+    }
+  ]
+}

@@ -22,10 +22,11 @@ from pathlib import Path
 from typing import Any
 
 import torch
+from safetensors.numpy import load_file as load_safetensors_file
 
 from peekaboo.benchmark.io_utils import save_onnx, save_pt, save_safetensors, state_dict_to_numpy
 from peekaboo.benchmark.models import TinyCNN
-from peekaboo.benchmark.tamper import add_gaussian_noise, embed_steganographic_payload
+from peekaboo.benchmark.tamper import add_gaussian_noise, embed_steganographic_payload, inflate_layer_tails
 from peekaboo.benchmark.data import DEFAULT_TRIGGER, TriggerSpec, make_dataset
 from peekaboo.benchmark.train import train_backdoored, train_clean, trigger_response
 
@@ -182,6 +183,43 @@ def generate_benchmark(
     return manifest
 
 
+OUTLIER_STATS_VARIANT = "outlier_stats"
+
+
+def generate_outlier_stats_fixture(benchmark_dir: str) -> dict[str, Any]:
+    """Derive the `outlier_stats` demo variant from an existing benchmark's
+    clean.safetensors: clean weights + one layer given heavy tails, so
+    Stage 3 (report-only) has something to show in a live demo.
+
+    Reads the committed clean weights rather than retraining: regenerating
+    is not bit-identical across machines (tests/fixtures/benchmark/
+    PROVENANCE.md), and a fresh clean model would make this variant's
+    untouched layers differ from the committed clean.safetensors. Kept out
+    of `generate_benchmark` and manifest.json for the same reason -- the
+    five canonical variants stay exactly as measured. Ground truth goes to
+    its own sidecar, outlier_stats.manifest.json."""
+    out_path = Path(benchmark_dir)
+    clean_state = load_safetensors_file(str(out_path / "clean.safetensors"))
+    outlier_state, outlier_gt = inflate_layer_tails(clean_state)
+    files = _save_variant(OUTLIER_STATS_VARIANT, outlier_state, out_path)
+    entry = {
+        "variant": OUTLIER_STATS_VARIANT,
+        "architecture": ARCH,
+        "files": files,
+        "derived_from": "clean.safetensors",
+        # A weight-distribution anomaly, not a payload or backdoor: it's
+        # "tampered" in the ground-truth sense that its weights were
+        # deliberately altered after training.
+        "is_tampered": True,
+        "tamper_types": ["statistical_outlier"],
+        "num_tensors": len(outlier_state),
+        "total_params": _num_params(outlier_state),
+        "tampering": [outlier_gt],
+    }
+    (out_path / f"{OUTLIER_STATS_VARIANT}.manifest.json").write_text(json.dumps(entry, indent=2), encoding="utf-8")
+    return entry
+
+
 def _write_manifest_json(manifest: list[dict[str, Any]], path: Path) -> None:
     path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
@@ -230,7 +268,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate Peekaboo synthetic benchmark models")
     parser.add_argument("--out-dir", default="benchmark_output", help="Output directory")
     parser.add_argument("--seed", type=int, default=0, help="Base random seed")
+    parser.add_argument(
+        "--outlier-stats-only",
+        action="store_true",
+        help="Only derive the outlier_stats demo variant from --out-dir's existing clean.safetensors",
+    )
     args = parser.parse_args()
+
+    if args.outlier_stats_only:
+        entry = generate_outlier_stats_fixture(args.out_dir)
+        print(f"Generated '{entry['variant']}' in '{args.out_dir}': {entry['tampering'][0]}")
+        return
 
     manifest = generate_benchmark(args.out_dir, seed=args.seed)
     print(f"Generated {len(manifest)} benchmark variants in '{args.out_dir}'")

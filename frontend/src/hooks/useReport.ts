@@ -23,10 +23,19 @@ export const DEMO_REPORTS: DemoReport[] = [
   },
 ];
 
+// Values peekaboo/api.py accepts for its `architecture` form field.
+// "tinycnn" is the one declared architecture the server can build a real
+// forward_fn for (the benchmark's own class); anything else is "unknown".
+export type ScanArchitecture = "unknown" | "tinycnn";
+
+// What the server actually did for Stage 5, from its X-Peekaboo-Forward-Fn
+// header: declaring TinyCNN doesn't guarantee the weights fit it.
+export type ForwardFnStatus = "none" | "tinycnn" | "tinycnn-load-failed";
+
 export type ReportSource =
   | { kind: "upload"; fileName: string }
   | { kind: "demo"; id: string }
-  | { kind: "scan"; fileName: string };
+  | { kind: "scan"; fileName: string; architecture: ScanArchitecture; forwardFn: ForwardFnStatus };
 
 function isPeekabooReport(value: unknown): value is PeekabooReport {
   if (typeof value !== "object" || value === null) return false;
@@ -91,15 +100,16 @@ export function useReport() {
     }
   }, []);
 
-  const loadFromScan = useCallback(async (file: File) => {
+  const loadFromScan = useCallback(async (file: File, architecture: ScanArchitecture = "unknown") => {
     setState((s) => ({ ...s, loading: true, error: null }));
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("architecture", architecture);
 
     // peekaboo/api.py, proxied by vite.config.ts's /api -> :8000 rewrite
-    // (PHASE7.md). Never sends a forward_fn -- an uploaded model's
-    // behavioral pillar always comes back not_run; that's the honest
-    // answer, not a bug in this call.
+    // (PHASE7.md). Unless the user declares TinyCNN, the server builds no
+    // forward_fn and the behavioral pillar comes back not_run; that's the
+    // honest answer, not a bug in this call.
     let res: Response;
     try {
       res = await fetch("/api/scan", { method: "POST", body: formData });
@@ -137,7 +147,15 @@ export function useReport() {
       if (!isPeekabooReport(parsed)) {
         throw new Error("The scan server returned something that doesn't look like a Peekaboo report.");
       }
-      setState({ report: parsed, source: { kind: "scan", fileName: file.name }, loading: false, error: null });
+      const header = res.headers.get("X-Peekaboo-Forward-Fn");
+      const forwardFn: ForwardFnStatus =
+        header === "tinycnn" || header === "tinycnn-load-failed" ? header : "none";
+      setState({
+        report: parsed,
+        source: { kind: "scan", fileName: file.name, architecture, forwardFn },
+        loading: false,
+        error: null,
+      });
     } catch (err) {
       setState((s) => ({
         ...s,
