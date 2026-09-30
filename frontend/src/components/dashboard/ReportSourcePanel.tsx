@@ -32,6 +32,9 @@ const ReportSourcePanel = ({
   const [dragOver, setDragOver] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [architecture, setArchitecture] = useState<ScanArchitecture>("unknown");
+  // The model file behind the current scan, so changing the architecture
+  // afterwards can re-scan it (see handleArchitectureChange).
+  const lastScannedFileRef = useRef<File | null>(null);
 
   // A .json is a pre-generated report (existing path); a model file goes
   // to the live-scan API instead (peekaboo/api.py, PHASE7.md). Anything
@@ -48,6 +51,7 @@ const ReportSourcePanel = ({
       }
       if (MODEL_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
         setLocalError(null);
+        lastScannedFileRef.current = file;
         onScanSelected(file, architecture);
         return;
       }
@@ -75,6 +79,23 @@ const ReportSourcePanel = ({
       if (file) handleSelectedFile(file);
     },
     [handleSelectedFile]
+  );
+
+  // The selector used to feed only the NEXT upload: picking TinyCNN after
+  // a file was already scanned left the selector reading "TinyCNN" over a
+  // report that was scanned as unknown (Stage 5 not assessed), with no
+  // new request sent. Re-scan the same file so the report always matches
+  // the architecture shown.
+  const handleArchitectureChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      const next = event.target.value as ScanArchitecture;
+      setArchitecture(next);
+      const file = lastScannedFileRef.current;
+      if (source?.kind === "scan" && file && file.name === source.fileName && next !== source.architecture) {
+        onScanSelected(file, next);
+      }
+    },
+    [source, onScanSelected]
   );
 
   const handleDemoChange = useCallback(
@@ -130,7 +151,7 @@ const ReportSourcePanel = ({
           id="scan-architecture-select"
           className="report-source-demo-select"
           value={architecture}
-          onChange={(event) => setArchitecture(event.target.value as ScanArchitecture)}
+          onChange={handleArchitectureChange}
         >
           {ARCHITECTURE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
